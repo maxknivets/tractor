@@ -2,8 +2,9 @@ package main
 
 import (
 	_ "github.com/manifold/tractor/dev/workspace/delegates"
-
-	_ "github.com/manifold/tractor/pkg/workspace/init"
+	"github.com/manifold/tractor/pkg/workspace/workspaceprocess"
 )
 
-func main() {}
+func main() {
+	workspaceprocess.Run()
+}
