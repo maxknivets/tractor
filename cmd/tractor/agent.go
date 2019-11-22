@@ -119,7 +119,12 @@ func runAgentCall(callmethod string) func(cmd *cobra.Command, args []string) {
 	return func(cmd *cobra.Command, args []string) {
 		wspath := args[0]
 		start := time.Now()
-		agentQRPCCall(os.Stdout, callmethod, wspath)
+		_, err := agentQRPCCall(os.Stdout, callmethod, wspath)
+		if err != nil {
+			fmt.Printf("qrpc: %s [%s(%q) %s]\n", err, callmethod, wspath, time.Since(start))
+			os.Exit(1)
+			return
+		}
 		fmt.Printf("qrpc: %s(%q) %s\n", callmethod, wspath, time.Since(start))
 	}
 }
