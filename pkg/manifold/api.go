@@ -73,14 +73,35 @@ type TreeNode interface {
 	ChildAt(idx int) TreeNode
 }
 
-// ComponentList interface/slice
-//     AppendComponent(com)            change
-//     RemoveComponent(com)            change
-//     InsertComponentAt(idx, com)     change
-//     RemoveComponentAt(idx)          change
-//     Component(name)
-//     Components()    [job for registry?]
-//     [registry here?]
+type ComponentList interface {
+
+	// AppendComponent adds a component to the component list.
+	// note: triggers a change for objects
+	AppendComponent(com Component)
+
+	// RemoveComponent removes the given component from the component list.
+	// note: triggers a change for objects
+	RemoveComponent(com Component)
+
+	// InsertComponentAt inserts a component to the component list at the index
+	// specified.
+	// note: triggers a change for objects
+	InsertComponentAt(idx int, com Component)
+
+	// RemoveComponentAt removes and returns the component at the given index.
+	// note: triggers a change for objects
+	RemoveComponentAt(idx int) Component
+
+	// Component returns the component with the given name from the component list.
+	// Since the component name is typically a type and there can be several components
+	// of the same type, the name for each includes a suffix `/` and its index among
+	// the others of the same type. Example: `http.Server/0` returns the first component
+	// named `http.Server`.
+	Component(name string) Component
+
+	// Components returns all the components in the component list.
+	Components() []Component
+}
 
 // AttributeSet is an interface for managing internal key-value
 // attributes of an object.
@@ -196,7 +217,7 @@ type UserComponent interface {
 // and child objects. They can either be part of a workspace System or a Prefab.
 type Object interface {
 	TreeNode
-	// ComponentList
+	ComponentList
 	AttributeSet
 	ComponentGetter
 	ComponentSetter
