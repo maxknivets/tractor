@@ -29,7 +29,7 @@ type TreeNode interface {
 	SetParent(node TreeNode)
 
 	// SiblingIndex returns the order of this node relative
-	// to its sibling nodes under their parent. If there i
+	// to its sibling nodes under their parent. If there is
 	// no parent it will return 0.
 	SiblingIndex() int
 
@@ -105,7 +105,7 @@ type ComponentList interface {
 
 // AttributeSet is an interface for managing internal key-value
 // attributes of an object.
-// note: potentially implemented as a map[string]interface{} instead of a struct
+// note: potentially implemented on a map[string]interface{} instead of a struct
 type AttributeSet interface {
 	// HasAttribute returns true if the named attribute exists.
 	HasAttribute(attr string) interface{}
@@ -151,21 +151,22 @@ type Component2 interface {
 	ComponentCaller
 
 	// Index returns the position among other components
-	// on the containing object. It returns -1 if there is no
+	// on the containing object. It always returns 0 if there is no
 	// containing object.
 	Index() int
 
 	// SetIndex sets the position among other components
-	// on the containing object.
+	// on the containing object. Using an index of -1 will set it to the
+	// highest possible index.
 	// note: triggers a change for objects
-	SetIndex(idx int)
+	SetIndex(idx int) error
 
 	// Name returns the name of the component.
-	Name()
+	Name() string
 
 	// Enabled returns whether the component is enabled.
 	// Specifically what that means is TBD...
-	Enabled()
+	Enabled() bool
 
 	// SetEnabled sets whether the component is enabled.
 	// note: triggers a change for objects
@@ -213,6 +214,18 @@ type UserComponent interface {
 	// -any initialization
 }
 
+type ObjectObserver struct {
+	// Path is a prefix to the paths that change notifications
+	// are allowed to come from for this observer. If blank, it
+	// defaults to the path of the object.
+	Path string
+
+	// OnChange is a callback for change notifications. It gets the
+	// specific object that was changed, the path to the specific
+	// field that was changed, the old value, and the new value.
+	OnChange func(obj Object, path string, old, new interface{})
+}
+
 // Object is the main primitive of Tractor, which is made up of components
 // and child objects. They can either be part of a workspace System or a Prefab.
 type Object interface {
@@ -247,11 +260,13 @@ type Object interface {
 	// reference. It returns nil if no components match.
 	FindPointer(ptr interface{}) Object
 
-	// TODO
-	//Observe(observer)
+	// Observe registers an observer with the object that
+	// will be notified of changes to the object.
+	Observe(observer *ObjectObserver)
 
-	// TODO
-	//Unobserve(observer)
+	// Unobserve unregisters an observer with the object to
+	// no longer be notified of changes.
+	Unobserve(observer *ObjectObserver)
 
 	// MainComponent returns the main component for this object
 	// or nil if there is none. The main component is not kept in
