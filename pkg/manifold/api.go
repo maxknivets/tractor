@@ -111,15 +111,15 @@ type AttributeSet interface {
 	HasAttribute(attr string) bool
 
 	// GetAttribute returns the named attribute value.
-	//GetAttribute(attr string) interface{}
+	GetAttribute(attr string) interface{}
 
 	// SetAttribute sets the named attribute value.
 	// note: triggers a change for objects
-	//SetAttribute(attr string, value interface{})
+	SetAttribute(attr string, value interface{})
 
 	// UnsetAttribute removes the named attribute.
 	// note: triggers a change for objects
-	//UnsetAttribute(attr string)
+	UnsetAttribute(attr string)
 }
 
 type ComponentGetter interface {

@@ -4,8 +4,9 @@ import "strings"
 
 func newObject(name string) *object {
 	obj := &object{
-		name:      name,
-		observers: make(map[*ObjectObserver]struct{}),
+		name:         name,
+		observers:    make(map[*ObjectObserver]struct{}),
+		attributeset: attributeset(make(map[string]interface{})),
 		componentlist: componentlist{
 			components: make([]Component2, 0),
 		},
