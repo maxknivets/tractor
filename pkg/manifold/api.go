@@ -50,27 +50,27 @@ type TreeNode interface {
 	//PreviousSibling() TreeNode
 
 	// ChildNodes returns a slice of any child nodes of this node.
-	//ChildNodes() []TreeNode
+	ChildNodes() []TreeNode
 
 	// RemoveChildAt removes and return the child node at the given index.
 	// note: triggers a change for objects
-	//RemoveChildAt(idx int) TreeNode
+	RemoveChildAt(idx int) TreeNode
 
 	// InsertChildAt inserts the node as a child at the given index.
 	// note: triggers a change for objects
-	//InsertChildAt(idx int, node TreeNode)
+	InsertChildAt(idx int, node TreeNode)
 
 	// RemoveChild removes the given node if it is a child of this node.
 	// note: triggers a change for objects
-	//RemoveChild(node TreeNode)
+	RemoveChild(node TreeNode)
 
 	// AppendChild adds the given node to this node's children.
 	// note: triggers a change for objects
-	//AppendChild(node TreeNode)
+	AppendChild(child TreeNode)
 
 	// ChildAt returns the child node at the given index. Using an
 	// index of -1 will return the last child.
-	//ChildAt(idx int) TreeNode
+	ChildAt(idx int) TreeNode
 }
 
 type ComponentList interface {
@@ -241,7 +241,7 @@ type Object interface {
 	//Children() []Object
 
 	// Name returns the name of this object.
-	//Name() string
+	Name() string
 
 	// SetName sets the name of this object.
 	// note: triggers a change for this object

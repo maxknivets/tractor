@@ -12,6 +12,7 @@ func newObject(name string) *object {
 		},
 	}
 	obj.treeNode.object = obj
+	obj.treeNode.children = make([]TreeNode, 0)
 	return obj
 }
 
