@@ -77,30 +77,30 @@ type ComponentList interface {
 
 	// AppendComponent adds a component to the component list.
 	// note: triggers a change for objects
-	AppendComponent(com Component)
+	//AppendComponent(com Component2)
 
 	// RemoveComponent removes the given component from the component list.
 	// note: triggers a change for objects
-	RemoveComponent(com Component)
+	//RemoveComponent(com Component2)
 
 	// InsertComponentAt inserts a component to the component list at the index
 	// specified.
 	// note: triggers a change for objects
-	InsertComponentAt(idx int, com Component)
+	//InsertComponentAt(idx int, com Component2)
 
 	// RemoveComponentAt removes and returns the component at the given index.
 	// note: triggers a change for objects
-	RemoveComponentAt(idx int) Component
+	//RemoveComponentAt(idx int) Component2
 
 	// Component returns the component with the given name from the component list.
 	// Since the component name is typically a type and there can be several components
 	// of the same type, the name for each includes a suffix `/` and its index among
 	// the others of the same type. Example: `http.Server/0` returns the first component
 	// named `http.Server`.
-	Component(name string) Component
+	//Component(name string) Component2
 
 	// Components returns all the components in the component list.
-	Components() []Component
+	Components() []Component2
 }
 
 // AttributeSet is an interface for managing internal key-value
@@ -108,18 +108,18 @@ type ComponentList interface {
 // note: potentially implemented on a map[string]interface{} instead of a struct
 type AttributeSet interface {
 	// HasAttribute returns true if the named attribute exists.
-	HasAttribute(attr string) interface{}
+	HasAttribute(attr string) bool
 
 	// GetAttribute returns the named attribute value.
-	GetAttribute(attr string) interface{}
+	//GetAttribute(attr string) interface{}
 
 	// SetAttribute sets the named attribute value.
 	// note: triggers a change for objects
-	SetAttribute(attr string, value interface{})
+	//SetAttribute(attr string, value interface{})
 
 	// UnsetAttribute removes the named attribute.
 	// note: triggers a change for objects
-	UnsetAttribute(attr string)
+	//UnsetAttribute(attr string)
 }
 
 type ComponentGetter interface {
@@ -230,8 +230,8 @@ type ObjectObserver struct {
 // and child objects. They can either be part of a workspace System or a Prefab.
 type Object interface {
 	TreeNode
-	//ComponentList
-	//AttributeSet
+	ComponentList
+	AttributeSet
 	//ComponentGetter
 	//ComponentSetter
 	//ComponentCaller
@@ -290,11 +290,11 @@ type System interface {
 	Object
 
 	// AbsPath returns a full path from root for a given object.
-	AbsPath(obj Object) string
+	//AbsPath(obj Object) string
 
 	// ExpandPath returns a normalized absolute path for a relative
 	// path to the given object.
-	ExpandPath(obj Object, path string) string
+	//ExpandPath(obj Object, path string) string
 
 	// FindID will find an object in the system that has the given
 	// ID or returns nil.
@@ -302,5 +302,5 @@ type System interface {
 
 	// RemoveID will remove and return the object from its parent that has the
 	// given ID, otherwise it returns nil.
-	RemoveID(id string) Object
+	//RemoveID(id string) Object
 }

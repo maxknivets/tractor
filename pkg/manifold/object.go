@@ -2,17 +2,26 @@ package manifold
 
 import "strings"
 
-func NewObject(name string) Object {
+func newObject(name string) *object {
 	obj := &object{
 		name:      name,
 		observers: make(map[*ObjectObserver]struct{}),
+		componentlist: componentlist{
+			components: make([]Component2, 0),
+		},
 	}
 	obj.treeNode.object = obj
 	return obj
 }
 
+func NewObject(name string) Object {
+	return newObject(name)
+}
+
 type object struct {
 	treeNode
+	componentlist
+	attributeset
 	name      string
 	observers map[*ObjectObserver]struct{}
 }
