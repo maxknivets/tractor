@@ -82,7 +82,7 @@ func buildSystray(ag *agent.Agent) {
 		go func(mi *systray.MenuItem, ws *agent.Workspace) {
 			for {
 				<-openItem.ClickedCh
-				open.StartWith(ws.Path, "Visual Studio Code.app")
+				open.StartWith(ws.TargetPath, "Visual Studio Code.app")
 			}
 		}(openItem, ws)
 	}

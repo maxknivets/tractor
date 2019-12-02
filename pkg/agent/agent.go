@@ -59,7 +59,7 @@ func (a *Agent) Workspace(path string) *Workspace {
 
 	wss, _ := a.Workspaces()
 	for _, ws := range wss {
-		if ws.Name == path {
+		if ws.Name == path || ws.TargetPath == path {
 			return ws
 		}
 	}

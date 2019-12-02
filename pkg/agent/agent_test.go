@@ -36,9 +36,9 @@ func TestAgent(t *testing.T) {
 		assert.Nil(t, err)
 		require.Equal(t, 2, len(wss))
 		assert.Equal(t, "err", wss[0].Name)
-		assert.Equal(t, filepath.Join(ag.WorkspacesPath, "err"), wss[0].Path)
+		assert.Equal(t, filepath.Join(ag.WorkspacesPath, "err"), wss[0].SymlinkPath)
 		assert.Equal(t, "test", wss[1].Name)
-		assert.Equal(t, filepath.Join(ag.WorkspacesPath, "test"), wss[1].Path)
+		assert.Equal(t, filepath.Join(ag.WorkspacesPath, "test"), wss[1].SymlinkPath)
 	})
 
 	t.Run("finds existing workspace", func(t *testing.T) {

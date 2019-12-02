@@ -45,26 +45,38 @@ func (s WorkspaceStatus) String() string {
 }
 
 type Workspace struct {
-	Name      string // base name of dir (~/.tractor/workspaces/{name})
-	Path      string
-	Socket    string // absolute path to socket file (~/.tractor/sockets/{name}.sock)
-	Status    WorkspaceStatus
-	bin       string
-	buf       *Buffer
-	callbacks []func(*Workspace)
-	cmd       *exec.Cmd
-	cancel    context.CancelFunc
-	mu        sync.Mutex
+	Name        string // base name of dir (~/.tractor/workspaces/{name})
+	SymlinkPath string // absolute path to symlink file (~/.tractor/workspaces/{name})
+	TargetPath  string // absolute path to target of symlink (actual workspace)
+	Socket      string // absolute path to socket file (~/.tractor/sockets/{name}.sock)
+	Status      WorkspaceStatus
+	bin         string
+	buf         *Buffer
+	callbacks   []func(*Workspace)
+	cmd         *exec.Cmd
+	cancel      context.CancelFunc
+	mu          sync.Mutex
 }
 
 func NewWorkspace(a *Agent, name string) *Workspace {
+	// JL: this may work differently when symlinks are automatically created
+	symlinkPath := filepath.Join(a.WorkspacesPath, name)
+	targetPath, err := os.Readlink(symlinkPath)
+	if err != nil {
+		// JL: 	this is just until the real NewWorkspace API is determined,
+		// 		depending on where the symlinking is done. if here, I imagine
+		//		NewWorkspace would return (*Workspace, error), but maybe not if
+		//		linking happens elsewhere
+		panic(err)
+	}
 	return &Workspace{
-		Name:      name,
-		Path:      filepath.Join(a.WorkspacesPath, name),
-		Socket:    filepath.Join(a.SocketsPath, fmt.Sprintf("%s.sock", name)),
-		Status:    StatusPartially,
-		bin:       a.Bin,
-		callbacks: make([]func(*Workspace), 0),
+		Name:        name,
+		SymlinkPath: symlinkPath,
+		TargetPath:  targetPath,
+		Socket:      filepath.Join(a.SocketsPath, fmt.Sprintf("%s.sock", name)),
+		Status:      StatusPartially,
+		bin:         a.Bin,
+		callbacks:   make([]func(*Workspace), 0),
 	}
 }
 
@@ -108,7 +120,7 @@ func (w *Workspace) start() (io.ReadCloser, error) {
 	w.cmd = exec.CommandContext(ctx, w.bin, "run", "workspace.go",
 		"-proto", "unix", "-addr", w.Socket)
 	w.cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	w.cmd.Dir = w.Path
+	w.cmd.Dir = w.TargetPath
 	w.cmd.Stdout = buf
 	w.cmd.Stderr = buf
 	w.cancel = cancel
