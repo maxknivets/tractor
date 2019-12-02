@@ -17,6 +17,7 @@ import (
 
 var (
 	tractorUserPath string
+	devMode         bool
 )
 
 func agentCmd() *cobra.Command {
@@ -27,6 +28,7 @@ func agentCmd() *cobra.Command {
 		Run:   runAgent,
 	}
 	cmd.AddCommand(agentCallCmd())
+	cmd.PersistentFlags().BoolVarP(&devMode, "dev", "d", false, "run in debug mode")
 	cmd.PersistentFlags().StringVarP(&tractorUserPath, "path", "p", "", "path to the user tractor directory (default is ~/.tractor)")
 	return cmd
 }
@@ -40,11 +42,23 @@ func openAgent() *agent.Agent {
 func runAgent(cmd *cobra.Command, args []string) {
 	ag := openAgent()
 
+	if agentSockExists(ag) && devMode {
+		return
+	}
+
 	go func(a *agent.Agent) {
 		fatal(agent.ListenAndServe(a))
 	}(ag)
 
 	systray.Run(onReady(ag), ag.Shutdown)
+}
+
+func agentSockExists(ag *agent.Agent) bool {
+	_, err := os.Stat(ag.AgentSocket)
+	if err != nil {
+		return !os.IsNotExist(err)
+	}
+	return true
 }
 
 func onReady(ag *agent.Agent) func() {
