@@ -31,7 +31,7 @@ type TreeNode interface {
 	// SiblingIndex returns the order of this node relative
 	// to its sibling nodes under their parent. If there is
 	// no parent it will return 0.
-	SiblingIndex() int
+	//SiblingIndex() int
 
 	// SetSiblingIndex changes the position of this node
 	// relative to its sibling nodes. If the node has no
@@ -39,38 +39,38 @@ type TreeNode interface {
 	// an error. Using an index of -1 will set it to the
 	// highest possible index.
 	// note: triggers a change for objects
-	SetSiblingIndex(idx int) error
+	//SetSiblingIndex(idx int) error
 
 	// NextSibling returns the next the sibling of this node
 	// or nil if there is no parent.
-	NextSibling() TreeNode
+	//NextSibling() TreeNode
 
 	// PreviousSibling returns the prevopis the sibling of this node
 	// or nil if there is no parent.
-	PreviousSibling() TreeNode
+	//PreviousSibling() TreeNode
 
 	// ChildNodes returns a slice of any child nodes of this node.
-	ChildNodes() []TreeNode
+	//ChildNodes() []TreeNode
 
 	// RemoveChildAt removes and return the child node at the given index.
 	// note: triggers a change for objects
-	RemoveChildAt(idx int) TreeNode
+	//RemoveChildAt(idx int) TreeNode
 
 	// InsertChildAt inserts the node as a child at the given index.
 	// note: triggers a change for objects
-	InsertChildAt(idx int, node TreeNode)
+	//InsertChildAt(idx int, node TreeNode)
 
 	// RemoveChild removes the given node if it is a child of this node.
 	// note: triggers a change for objects
-	RemoveChild(node TreeNode)
+	//RemoveChild(node TreeNode)
 
 	// AppendChild adds the given node to this node's children.
 	// note: triggers a change for objects
-	AppendChild(node TreeNode)
+	//AppendChild(node TreeNode)
 
 	// ChildAt returns the child node at the given index. Using an
 	// index of -1 will return the last child.
-	ChildAt(idx int) TreeNode
+	//ChildAt(idx int) TreeNode
 }
 
 type ComponentList interface {
@@ -230,35 +230,35 @@ type ObjectObserver struct {
 // and child objects. They can either be part of a workspace System or a Prefab.
 type Object interface {
 	TreeNode
-	ComponentList
-	AttributeSet
-	ComponentGetter
-	ComponentSetter
-	ComponentCaller
+	//ComponentList
+	//AttributeSet
+	//ComponentGetter
+	//ComponentSetter
+	//ComponentCaller
 
 	// Children returns the children of this object.
 	// note: convenience wrapper for TreeNode.ChildNodes() as Objects
-	Children() []Object
+	//Children() []Object
 
 	// Name returns the name of this object.
-	Name() string
+	//Name() string
 
 	// SetName sets the name of this object.
 	// note: triggers a change for this object
-	SetName(name string)
+	//SetName(name string)
 
 	// ID returns a unique identifier for this object.
-	ID() string
+	//ID() string
 
 	// FindChild returns a descendant of this object that
 	// macthes the name or relative path. It returns nil
 	// if no descendant matches.
-	FindChild(subpath string) Object
+	//FindChild(subpath string) Object
 
 	// FindPointer returns a descendant of this object that
 	// contains a component pointing to the given struct
 	// reference. It returns nil if no components match.
-	FindPointer(ptr interface{}) Object
+	//FindPointer(ptr interface{}) Object
 
 	// Observe registers an observer with the object that
 	// will be notified of changes to the object.
@@ -268,19 +268,21 @@ type Object interface {
 	// no longer be notified of changes.
 	Unobserve(observer *ObjectObserver)
 
+	Notify(object Object, path string, old, new interface{})
+
 	// MainComponent returns the main component for this object
 	// or nil if there is none. The main component is not kept in
 	// the ComponentList. The main component is often a UserComponent.
-	MainComponent() Component
+	//MainComponent() Component
 
 	// SetMainComponent sets the main component for this object.
 	// If the component exists in the ComponentList, it will be removed.
 	// note: triggers a change for this object
-	SetMainComponent(com Component)
+	//SetMainComponent(com Component)
 
 	// System returns the root parent node of this object as a System
 	// if it is one, otherwise it returns nil.
-	System() System
+	//System() System
 }
 
 // System is the root Object in a workspace.
