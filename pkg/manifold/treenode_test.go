@@ -8,8 +8,8 @@ import (
 )
 
 func TestTreeNodeSetParent(t *testing.T) {
-	sys := New()
-	obj := NewObject("obj")
+	sys := New("sys")
+	obj := New("obj")
 
 	assert.Nil(t, obj.Parent())
 	assert.Equal(t, obj, obj.Root().Object())
@@ -23,15 +23,15 @@ func TestTreeNodeSetParent(t *testing.T) {
 }
 
 func TestTreeNodeChildAt(t *testing.T) {
-	sys := New()
+	sys := New("sys")
 	assert.Equal(t, 0, len(sys.ChildNodes()))
 	assert.Nil(t, sys.ChildAt(0))
 	assert.Nil(t, sys.ChildAt(100))
 }
 
 func TestTreeNodeAppendChild(t *testing.T) {
-	sys := New()
-	n1 := NewObject("n1")
+	sys := New("sys")
+	n1 := New("n1")
 	assert.Nil(t, n1.Parent())
 	sys.AppendChild(n1)
 	assert.Equal(t, sys.Object(), n1.Parent().Object())
@@ -40,26 +40,26 @@ func TestTreeNodeAppendChild(t *testing.T) {
 }
 
 func TestTreeNodeInsertChildAt(t *testing.T) {
-	sys := New()
-	n2 := NewObject("n2")
+	sys := New("sys")
+	n2 := New("n2")
 	assert.Nil(t, n2.Parent())
 	sys.InsertChildAt(0, n2)
 	assert.Equal(t, sys.Object(), n2.Parent().Object())
 	assert.Equal(t, []string{"n2"}, childNodeNames(sys))
 
-	n3 := NewObject("n3")
+	n3 := New("n3")
 	assert.Nil(t, n3.Parent())
 	sys.InsertChildAt(1, n3)
 	assert.Equal(t, sys.Object(), n3.Parent().Object())
 	assert.Equal(t, []string{"n2", "n3"}, childNodeNames(sys))
 
-	n4 := NewObject("n4")
+	n4 := New("n4")
 	assert.Nil(t, n4.Parent())
 	sys.InsertChildAt(5, n4)
 	assert.Equal(t, sys.Object(), n4.Parent().Object())
 	assert.Equal(t, []string{"n2", "n3", "n4"}, childNodeNames(sys))
 
-	n1 := NewObject("n1")
+	n1 := New("n1")
 	assert.Nil(t, n1.Parent())
 	sys.InsertChildAt(0, n1)
 	assert.Equal(t, sys.Object(), n1.Parent().Object())
@@ -67,10 +67,10 @@ func TestTreeNodeInsertChildAt(t *testing.T) {
 }
 
 func TestTreeNodeRemoveChild(t *testing.T) {
-	sys := New()
-	sys.AppendChild(NewObject("n1"))
-	sys.AppendChild(NewObject("n2"))
-	sys.AppendChild(NewObject("n3"))
+	sys := New("sys")
+	sys.AppendChild(New("n1"))
+	sys.AppendChild(New("n2"))
+	sys.AppendChild(New("n3"))
 
 	require.Equal(t, []string{"n1", "n2", "n3"}, childNodeNames(sys))
 	n1 := sys.ChildNodes()[0]
@@ -86,10 +86,10 @@ func TestTreeNodeRemoveChild(t *testing.T) {
 }
 
 func TestTreeNodeRemoveChildAt(t *testing.T) {
-	sys := New()
-	sys.AppendChild(NewObject("n1"))
-	sys.AppendChild(NewObject("n2"))
-	sys.AppendChild(NewObject("n3"))
+	sys := New("sys")
+	sys.AppendChild(New("n1"))
+	sys.AppendChild(New("n2"))
+	sys.AppendChild(New("n3"))
 
 	require.Equal(t, []string{"n1", "n2", "n3"}, childNodeNames(sys))
 

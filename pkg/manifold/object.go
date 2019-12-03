@@ -14,7 +14,7 @@ func newObject(name string) *object {
 	return obj
 }
 
-func NewObject(name string) Object {
+func New(name string) Object {
 	return newObject(name)
 }
 
@@ -22,18 +22,10 @@ type object struct {
 	treeNode
 	componentlist
 	attributeset
-	sys       System
 	name      string
 	observers map[*ObjectObserver]struct{}
 }
 
 func (o *object) Name() string {
 	return o.name
-}
-
-func (o *object) System() System {
-	if o.sys != nil {
-		return o.sys
-	}
-	return o.Root().Object().System()
 }

@@ -7,10 +7,10 @@ import (
 )
 
 func TestSystem(t *testing.T) {
-	sys := New()
-	n1 := NewObject("n1")
-	n2 := NewObject("n2")
-	n3 := NewObject("n3")
+	sys := New("sys")
+	n1 := New("n1")
+	n2 := New("n2")
+	n3 := New("n3")
 	n2.AppendChild(n3)
 	n1.AppendChild(n2)
 	sys.AppendChild(n1)

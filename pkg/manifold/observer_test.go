@@ -9,8 +9,8 @@ import (
 
 func TestObserveSetParent(t *testing.T) {
 	seen := false
-	obj := NewObject("test")
-	parent := NewObject("parent")
+	obj := New("test")
+	parent := New("parent")
 
 	assertObserver(t, obj, "Parent", func(changed Object, path string, old, new interface{}) {
 		assert.Equal(t, obj, changed)
@@ -27,8 +27,8 @@ func TestObserveSetParent(t *testing.T) {
 
 func TestObserveRemoveChildAt(t *testing.T) {
 	seen := false
-	obj := NewObject("test")
-	parent := NewObject("parent")
+	obj := New("test")
+	parent := New("parent")
 	parent.AppendChild(obj)
 
 	assertObserver(t, parent, "R", func(changed Object, path string, old, new interface{}) {
@@ -46,8 +46,8 @@ func TestObserveRemoveChildAt(t *testing.T) {
 
 func TestObserveInsertChildAt(t *testing.T) {
 	seen := false
-	obj := NewObject("test")
-	parent := NewObject("parent")
+	obj := New("test")
+	parent := New("parent")
 
 	assertObserver(t, parent, "I", func(changed Object, path string, old, new interface{}) {
 		assert.Equal(t, parent, changed)
@@ -64,8 +64,8 @@ func TestObserveInsertChildAt(t *testing.T) {
 
 func TestObserveRemoveChild(t *testing.T) {
 	seen := false
-	obj := NewObject("test")
-	parent := NewObject("parent")
+	obj := New("test")
+	parent := New("parent")
 	parent.AppendChild(obj)
 
 	assertObserver(t, parent, "R", func(changed Object, path string, old, new interface{}) {
@@ -83,8 +83,8 @@ func TestObserveRemoveChild(t *testing.T) {
 
 func TestObserveAppendChild(t *testing.T) {
 	seen := false
-	obj := NewObject("test")
-	parent := NewObject("parent")
+	obj := New("test")
+	parent := New("parent")
 
 	assertObserver(t, parent, "A", func(changed Object, path string, old, new interface{}) {
 		assert.Equal(t, parent, changed)

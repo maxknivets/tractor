@@ -7,7 +7,7 @@ import (
 )
 
 func TestAttributeSet(t *testing.T) {
-	sys := New()
+	sys := New("")
 	sys.SetAttribute("test", "value")
 
 	assert.True(t, sys.HasAttribute("test"))

@@ -1,21 +1,12 @@
 package manifold
 
-type system struct {
-	*object
-}
-
-func New() System {
-	sys := &system{
-		object: newObject(""),
-	}
-	sys.object.sys = sys
-	return sys
-}
-
-func (s *system) FindID(id string) Object {
+func (o *object) FindID(id string) Object {
 	return nil
 }
 
-func (s *system) System() System {
-	return s
+func (o *object) System() System {
+	if o.parent != nil {
+		return o.Root().Object().System()
+	}
+	return o
 }
