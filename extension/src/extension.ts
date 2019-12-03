@@ -89,11 +89,6 @@ export function activate(context: vscode.ExtensionContext) {
 		tree.moveNode(node.id, node.index+1);
 	});
 
-	
-	vscode.tasks.executeTask(new vscode.Task({
-		type: 'agent'
-	}, "server", "tractor", new vscode.ShellExecution(`${path.join(context.extensionPath, '../dev/bin/tractor')} agent dev`)));
-
 	// setTimeout(() => {
 	// 	let repl = vscode.window.createTerminal("repl", path.join(context.extensionPath, '../repl.js'));
 	// 	repl.show();

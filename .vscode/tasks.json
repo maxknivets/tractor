@@ -4,53 +4,20 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"type": "npm",
-			"script": "watch",
+			"label": "Run Dev",
+			"type": "shell",
 			"problemMatcher": "$tsc-watch",
-			"isBackground": true,
-			"options": {
-				"cwd": "${workspaceRoot}/extension"
-			},
-			"presentation": {
-				"reveal": "never"
-			},
-			"group": {
-				"kind": "build",
-				"isDefault": true
-			}
-		},
-		{
-			"label": "Run Agent",
-			"type": "shell",
-			"problemMatcher": "",
 			"command": "${workspaceRoot}/dev/bin/tractor", 
-			"args": ["agent", "dev"],
+			"args": ["dev"],
+			"isBackground": true,
 			"presentation": {
-				"reveal": "silent",
-				"clear": true,
+				"reveal": "always",
+				"clear": true
 			},
 			"group": {
 				"kind": "build",
 				"isDefault": true
 			}
 		},
-		{
-			"label": "Agent cleanup",
-			"type": "shell",
-			"problemMatcher": "",
-			"command": "sh", 
-			"args": [
-				"-c",
-				"sleep 1 && nc -w 0 -U ~/.tractor/agent.sock || rm ~/.tractor/agent.sock || true",
-			],
-			"presentation": {
-				"reveal": "never",
-				"clear": true,
-			},
-			"group": {
-				"kind": "build",
-				"isDefault": true
-			}
-		}
 	]
 }
