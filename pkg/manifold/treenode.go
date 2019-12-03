@@ -33,7 +33,15 @@ func (t *treeNode) ChildNodes() []TreeNode {
 
 func (t *treeNode) RemoveChildAt(idx int) TreeNode {
 	child := t.ChildAt(idx)
-	t.children = append(t.children[:idx], t.children[idx+1:]...)
+	if child == nil {
+		return nil
+	}
+
+	if len(t.children) > idx {
+		t.children = append(t.children[:idx], t.children[idx+1:]...)
+	} else {
+		t.children = t.children[:idx]
+	}
 	return child
 }
 
