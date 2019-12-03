@@ -282,7 +282,7 @@ type Object interface {
 
 	// System returns the root parent node of this object as a System
 	// if it is one, otherwise it returns nil.
-	//System() System
+	System() System
 }
 
 // System is the root Object in a workspace.

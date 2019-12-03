@@ -1,6 +1,8 @@
 package manifold
 
-import "strings"
+import (
+	"strings"
+)
 
 func newObject(name string) *object {
 	obj := &object{
@@ -24,6 +26,7 @@ type object struct {
 	treeNode
 	componentlist
 	attributeset
+	sys       System
 	name      string
 	observers map[*ObjectObserver]struct{}
 }
@@ -54,4 +57,11 @@ func (o *object) Notify(obj Object, path string, old, new interface{}) {
 	if o.parent != nil {
 		o.parent.Object().Notify(obj, path, old, new)
 	}
+}
+
+func (o *object) System() System {
+	if o.sys != nil {
+		return o.sys
+	}
+	return o.Root().Object().System()
 }

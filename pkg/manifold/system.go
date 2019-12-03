@@ -1,15 +1,21 @@
 package manifold
 
 type system struct {
-	object
+	*object
 }
 
 func New() System {
-	return &system{
-		object: *newObject(""),
+	sys := &system{
+		object: newObject(""),
 	}
+	sys.object.sys = sys
+	return sys
 }
 
 func (s *system) FindID(id string) Object {
 	return nil
+}
+
+func (s *system) System() System {
+	return s
 }
