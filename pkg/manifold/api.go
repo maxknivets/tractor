@@ -31,7 +31,7 @@ type TreeNode interface {
 	// SiblingIndex returns the order of this node relative
 	// to its sibling nodes under their parent. If there is
 	// no parent it will return 0.
-	//SiblingIndex() int
+	SiblingIndex() int
 
 	// SetSiblingIndex changes the position of this node
 	// relative to its sibling nodes. If the node has no
@@ -39,15 +39,15 @@ type TreeNode interface {
 	// an error. Using an index of -1 will set it to the
 	// highest possible index.
 	// note: triggers a change for objects
-	//SetSiblingIndex(idx int) error
+	SetSiblingIndex(idx int) error
 
 	// NextSibling returns the next the sibling of this node
 	// or nil if there is no parent.
-	//NextSibling() TreeNode
+	NextSibling() TreeNode
 
-	// PreviousSibling returns the prevopis the sibling of this node
+	// PreviousSibling returns the previous sibling of this node
 	// or nil if there is no parent.
-	//PreviousSibling() TreeNode
+	PreviousSibling() TreeNode
 
 	// ChildNodes returns a slice of any child nodes of this node.
 	ChildNodes() []TreeNode
