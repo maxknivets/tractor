@@ -8,7 +8,7 @@
 			"type": "shell",
 			"problemMatcher": "$tsc-watch",
 			"command": "${workspaceRoot}/dev/bin/tractor", 
-			"args": ["dev"],
+			"args": ["selfdev"],
 			"isBackground": true,
 			"presentation": {
 				"reveal": "always",

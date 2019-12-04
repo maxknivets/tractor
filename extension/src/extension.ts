@@ -45,7 +45,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 	
 
-	var tree = new TreeExplorer(context);
+	var tree = new TreeExplorer(context, vscode.workspace.workspaceFolders[0].uri.path);
 	vscode.commands.registerCommand('treeExplorer.addNode', () => {
 		vscode.window.showInputBox({ placeHolder: 'Enter a node name' })
 			.then(value => {

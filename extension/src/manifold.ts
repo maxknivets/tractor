@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import * as os from 'os';
 import * as qmux from 'qmux';
 import * as qrpc from 'qrpc';
 
@@ -15,7 +16,8 @@ export class TreeExplorer {
 
     selectedNodeId: any;
 
-	constructor(context: vscode.ExtensionContext) {
+	constructor(context: vscode.ExtensionContext, workspacePath: string) {
+		
 		const treeDataProvider = new NodeProvider(this);
 		this.explorer = vscode.window.createTreeView('treeExplorer', { treeDataProvider });
 		vscode.commands.registerCommand('treeExplorer.inspectNode', (nodeId) => this.inspectNode(nodeId, context));
@@ -23,22 +25,42 @@ export class TreeExplorer {
 		this.api = new qrpc.API();
 		this.api.handle("state", treeDataProvider);
 
-		this.connect();
+		this.connectAgent(workspacePath);
 	}
 
-	async connect() {
+	async connectAgent(workspacePath: string) {
 		try {
-			var conn = await qmux.DialWebsocket("ws://localhost:4243");
+			var conn = await qmux.DialUnix(`${os.homedir()}/.tractor/agent.sock`);
 		} catch (e) {
 			setTimeout(() => {
-				this.connect();
+				this.connectAgent(workspacePath);
 			}, 200);
 			return;
 		}
 		conn.socket.onclose = () => {
 			conn.close();
 			setTimeout(() => {
-				this.connect();
+				this.connectAgent(workspacePath);
+			}, 200);
+		};
+		let agent = new qrpc.Client(new qmux.Session(conn));
+		let resp = await agent.call("connect", workspacePath);
+		this.connect(resp.reply);
+	}
+
+	async connect(socketPath: string) {
+		try {
+			var conn = await qmux.DialUnix(socketPath);
+		} catch (e) {
+			setTimeout(() => {
+				this.connect(socketPath);
+			}, 200);
+			return;
+		}
+		conn.socket.onclose = () => {
+			conn.close();
+			setTimeout(() => {
+				this.connect(socketPath);
 			}, 200);
 		};
 		var session = new qmux.Session(conn);
@@ -237,3 +259,5 @@ export class Node extends vscode.TreeItem {
 	contextValue = 'node';
 
 }
+
+
