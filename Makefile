@@ -1,3 +1,4 @@
+.PHONY: setup build clobber dev dev/bin/tractor extension/out
 
 setup: dev/workspace dev/bin extension/node_modules
 	make build

@@ -150,7 +150,7 @@ func (w *Workspace) start() (io.ReadCloser, error) {
 func (w *Workspace) Stop() {
 	w.mu.Lock()
 	log.Println("[workspace]", w.Name, "Stop()")
-	w.resetPid(StatusPartially)
+	w.resetPid(StatusUnavailable)
 	w.mu.Unlock()
 }
 
@@ -183,7 +183,8 @@ func (w *Workspace) resetPid(s WorkspaceStatus) {
 	os.RemoveAll(w.SocketPath)
 
 	if w.consoleBuf != nil {
-		w.consoleBuf.Close()
+		// this blocks indefinitely!
+		//w.consoleBuf.Close()
 		w.consoleBuf = nil
 	}
 

@@ -5,6 +5,10 @@ import * as os from 'os';
 import * as qmux from 'qmux';
 import * as qrpc from 'qrpc';
 
+function timeout(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 export class TreeExplorer {
 
 	explorer: vscode.TreeView<Node>;
@@ -29,39 +33,51 @@ export class TreeExplorer {
 	}
 
 	async connectAgent(workspacePath: string) {
-		try {
-			var conn = await qmux.DialUnix(`${os.homedir()}/.tractor/agent.sock`);
-		} catch (e) {
-			setTimeout(() => {
-				this.connectAgent(workspacePath);
-			}, 200);
+		let agentSock = `${os.homedir()}/.tractor/agent.sock`;
+		if (!fs.existsSync(agentSock)) {
+			await timeout(200);
+			this.connectAgent(workspacePath);
 			return;
 		}
-		conn.socket.onclose = () => {
+		try {
+			var conn = await qmux.DialUnix(agentSock);
+		} catch (e) {
+			await timeout(200);
+			this.connectAgent(workspacePath);
+			return;
+		}
+		conn.socket.onclose = async () => {
 			conn.close();
-			setTimeout(() => {
-				this.connectAgent(workspacePath);
-			}, 200);
+			await timeout(200);
+			this.connectAgent(workspacePath);
 		};
 		let agent = new qrpc.Client(new qmux.Session(conn));
 		let resp = await agent.call("connect", workspacePath);
+
 		this.connect(resp.reply);
 	}
 
 	async connect(socketPath: string) {
-		try {
-			var conn = await qmux.DialUnix(socketPath);
-		} catch (e) {
-			setTimeout(() => {
-				this.connect(socketPath);
-			}, 200);
+		if (!fs.existsSync(socketPath)) {
+			await timeout(200);
+			this.connect(socketPath);
 			return;
 		}
-		conn.socket.onclose = () => {
+		await timeout(200);
+		try {
+			var conn = await qmux.DialUnix(socketPath);
+			console.log("dialed");
+		} catch (e) {
+			await timeout(200);
+			console.log("retrying connection to "+socketPath);
+			this.connect(socketPath);
+			return;
+		}
+		conn.socket.onclose = async () => {
 			conn.close();
-			setTimeout(() => {
-				this.connect(socketPath);
-			}, 200);
+			await timeout(200);
+			console.log("retrying connection to "+socketPath);
+			this.connect(socketPath);
 		};
 		var session = new qmux.Session(conn);
 		this.client = new qrpc.Client(session, this.api);

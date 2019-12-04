@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"time"
 
@@ -37,8 +38,24 @@ func agentCmd() *cobra.Command {
 func runAgent(cmd *cobra.Command, args []string) {
 	ag := openAgent()
 
-	if agentSockExists(ag) && devMode {
-		return
+	if devMode {
+		if agentSockExists(ag) {
+			return
+		}
+		go notifyChanges("./...", []string{".go"}, false, func(path string) {
+			_, err := ag.Workspaces()
+			if err != nil {
+				log.Println(err)
+				return
+			}
+			log.Println("[dev] changes detected, restarting workspaces")
+			// for _, ws := range workspaces {
+			// 	ws.Start()
+			// }
+			// if currentServer != nil {
+			// 	syscall.Kill(-currentServer.Process.Pid, syscall.SIGTERM)
+			// }
+		})
 	}
 
 	go func(a *agent.Agent) {

@@ -36,7 +36,7 @@ func init() {
 	sigQuit = ct
 
 	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, os.Kill, syscall.SIGHUP)
+	signal.Notify(c, os.Interrupt, os.Kill, syscall.SIGHUP, syscall.SIGTSTP, syscall.SIGSTOP)
 
 	go func(c <-chan os.Signal) {
 		<-c

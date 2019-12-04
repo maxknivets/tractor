@@ -58,6 +58,8 @@ func ListenAndServe(a *Agent) error {
 			r.Return(err)
 			return
 		}
+
+		r.Return(nil)
 	})
 
 	api.HandleFunc("stop", func(r qrpc.Responder, c *qrpc.Call) {
