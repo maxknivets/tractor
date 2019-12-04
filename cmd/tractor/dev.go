@@ -8,11 +8,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func devCmd() *cobra.Command {
+// `tractor selfdev`
+func selfdevCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "dev",
-		Short: "Starts the tractor dev harness",
-		Long:  "Starts the tractor dev harness",
+		Use:   "selfdev",
+		Short: "Starts the dev harness for Tractor",
+		Long:  "Starts the dev harness for Tractor",
 		Run: func(cmd *cobra.Command, args []string) {
 			var wg sync.WaitGroup
 			wg.Add(1)
