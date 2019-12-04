@@ -59,10 +59,8 @@ func Open(path string) (*Agent, error) {
 // either:
 //   * the workspace symlink's basename in the agent's WorkspacesPath.
 //   * the full path to the target of a workspace symlink in WorkspacesPath.
-//
-// To be implemented:
 //   * full path to the workspace anywhere else. it will be symlinked to
-//     the Workspaces path.
+//     the Workspaces path using the basename of the full path.
 func (a *Agent) Workspace(path string) *Workspace {
 	// check to see if the workspace is cached
 	// cached=workspace is running through an agent QRPC call, or showing the
