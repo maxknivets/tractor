@@ -25,6 +25,27 @@ func TestObserveSetParent(t *testing.T) {
 	require.True(t, seen)
 }
 
+func TestObserveSetSiblingIndex(t *testing.T) {
+	seen := false
+	root := New("root")
+	c1 := New("c1")
+	c2 := New("c2")
+	root.AppendChild(c1)
+	root.AppendChild(c2)
+
+	assertObserver(t, c2, "SetSiblingIndex", func(changed Object, path string, old, new interface{}) {
+		assert.Equal(t, c2, changed)
+		assert.Equal(t, "SetSiblingIndex", path)
+		assert.Equal(t, 1, old)
+		assert.Equal(t, 0, new)
+		seen = true
+	})
+
+	require.False(t, seen)
+	c2.SetSiblingIndex(0)
+	require.True(t, seen)
+}
+
 func TestObserveRemoveChildAt(t *testing.T) {
 	seen := false
 	obj := New("test")

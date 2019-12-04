@@ -11,6 +11,16 @@ func (o *object) SetParent(parent TreeNode) {
 	o.Notify(o, "Parent", o.parent, parent)
 }
 
+func (o *object) SetSiblingIndex(idx int) error {
+	old := o.treeNode.SiblingIndex()
+	if err := o.treeNode.SetSiblingIndex(idx); err != nil {
+		return err
+	}
+
+	o.Notify(o, "SetSiblingIndex", old, idx)
+	return nil
+}
+
 func (o *object) RemoveChildAt(idx int) TreeNode {
 	removed := o.treeNode.RemoveChildAt(idx)
 	o.Notify(o, "RemoveChildAt", removed, nil)
