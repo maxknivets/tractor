@@ -12,6 +12,8 @@ import (
 	"github.com/manifold/qtalk/qrpc"
 )
 
+// ListenAndServe hosts a QRPC server to start and stop workspaces for the
+// given agent, accessible through a unix socket at agent.SocketPath.
 func ListenAndServe(a *Agent) error {
 	api := qrpc.NewAPI()
 	api.HandleFunc("connect", func(r qrpc.Responder, c *qrpc.Call) {
@@ -87,14 +89,14 @@ func ListenAndServe(a *Agent) error {
 	}()
 
 	server := &qrpc.Server{}
-	l, err := mux.ListenUnix(a.AgentSocket)
+	l, err := mux.ListenUnix(a.SocketPath)
 	if err != nil {
 		return err
 	}
 
-	log.Printf("[server] unix://%s", a.AgentSocket)
+	log.Printf("[server] unix://%s", a.SocketPath)
 	err = server.Serve(l, api)
-	os.Remove(a.AgentSocket)
+	os.Remove(a.SocketPath)
 	return err
 }
 

@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -10,17 +11,20 @@ import (
 	"sync"
 )
 
+// Agent manages multiple workspaces in a directory (default: ~/.tractor).
 type Agent struct {
-	Path           string // ~/.tractor
-	AgentSocket    string // ~/.tractor/agent.sock
-	WorkspacesPath string // ~/.tractor/workspaces
-	SocketsPath    string // ~/.tractor/sockets
-	GoBin          string
+	Path                 string // ~/.tractor
+	SocketPath           string // ~/.tractor/agent.sock
+	WorkspacesPath       string // ~/.tractor/workspaces
+	WorkspaceSocketsPath string // ~/.tractor/sockets
+	GoBin                string
 
 	workspaces map[string]*Workspace
 	mu         sync.RWMutex
 }
 
+// Open returns a new agent for the given path. If the given path is empty, a
+// default of ~/.tractor will be used.
 func Open(path string) (*Agent, error) {
 	bin, err := exec.LookPath("go")
 	if err != nil {
@@ -41,17 +45,26 @@ func Open(path string) (*Agent, error) {
 		a.Path = p
 	}
 
-	a.AgentSocket = filepath.Join(a.Path, "agent.sock")
+	a.SocketPath = filepath.Join(a.Path, "agent.sock")
 	a.WorkspacesPath = filepath.Join(a.Path, "workspaces")
-	a.SocketsPath = filepath.Join(a.Path, "sockets")
+	a.WorkspaceSocketsPath = filepath.Join(a.Path, "sockets")
 
 	os.MkdirAll(a.WorkspacesPath, 0700)
-	os.MkdirAll(a.SocketsPath, 0700)
+	os.MkdirAll(a.WorkspaceSocketsPath, 0700)
 
 	return a, nil
 }
 
+// Workspace returns a Workspace for the given path. The path must match
+// either:
+//   * the workspace symlink's basename in the agent's WorkspacesPath.
+//   * the full path to the target of a workspace symlink in WorkspacesPath.
+//   * full path to the workspace anywhere else. it will be symlinked to
+//     the Workspaces path using the basename of the full path.
 func (a *Agent) Workspace(path string) *Workspace {
+	// check to see if the workspace is cached
+	// cached=workspace is running through an agent QRPC call, or showing the
+	// workspace in the systray.
 	a.mu.RLock()
 	ws := a.workspaces[path]
 	a.mu.RUnlock()
@@ -59,6 +72,7 @@ func (a *Agent) Workspace(path string) *Workspace {
 		return ws
 	}
 
+	// now look for a symlink in ~/.tractor/workspaces
 	wss, _ := a.Workspaces()
 	for _, ws := range wss {
 		if ws.Name == path || ws.TargetPath == path {
@@ -66,17 +80,44 @@ func (a *Agent) Workspace(path string) *Workspace {
 		}
 	}
 
-	return nil
+	// if full path is a dir with workspace.go, symlink it
+	basename, err := a.symlinkWorkspace(path)
+	if err != nil {
+		return nil
+	}
+
+	return a.Workspace(basename)
 }
 
-func (a *Agent) Shutdown() {
-	log.Println("[server] shutting down")
-	os.RemoveAll(a.AgentSocket)
-	for _, ws := range a.workspaces {
-		ws.Stop()
+func (a *Agent) symlinkWorkspace(path string) (string, error) {
+	fi, err := os.Lstat(filepath.Join(path, "workspace.go"))
+	if err != nil {
+		return "", err
+	}
+
+	if fi.IsDir() {
+		return "", nil
+	}
+
+	basepath := filepath.Base(path)
+	base := basepath
+	i := 1
+	for {
+		err = os.Symlink(path, filepath.Join(a.WorkspacesPath, base))
+		if err != nil && !os.IsExist(err) {
+			return base, err
+		}
+
+		if err == nil {
+			return base, nil
+		}
+
+		i++
+		base = fmt.Sprintf("%s-%d", basepath, i)
 	}
 }
 
+// Workspaces returns the workspaces under this agent's WorkspacesPath.
 func (a *Agent) Workspaces() ([]*Workspace, error) {
 	entries, err := ioutil.ReadDir(a.WorkspacesPath)
 	if err != nil {
@@ -100,6 +141,15 @@ func (a *Agent) Workspaces() ([]*Workspace, error) {
 	}
 	a.mu.Unlock()
 	return workspaces, nil
+}
+
+// Shutdown shuts all workspaces down and cleans up socket files.
+func (a *Agent) Shutdown() {
+	log.Println("[server] shutting down")
+	os.RemoveAll(a.SocketPath)
+	for _, ws := range a.workspaces {
+		ws.Stop()
+	}
 }
 
 func (a *Agent) isWorkspaceDir(fi os.FileInfo) bool {
