@@ -2,4 +2,8 @@ node_modules
 .DS_Store
 data/workspace/go.sum
 dev
+<<<<<<< 4d640c9c84e6f7dd614ab4ea16113afdb9e89b4b
 extension/out
+=======
+extension/out
+>>>>>>> gitignore: extension/out
