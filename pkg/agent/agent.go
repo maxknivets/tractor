@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -63,6 +64,9 @@ func Open(path string) (*Agent, error) {
 //   * full path to the workspace anywhere else. it will be symlinked to
 //     the Workspaces path.
 func (a *Agent) Workspace(path string) *Workspace {
+	// check to see if the workspace is cached
+	// cached=workspace is running through an agent QRPC call, or showing the
+	// workspace in the systray.
 	a.mu.RLock()
 	ws := a.workspaces[path]
 	a.mu.RUnlock()
@@ -70,6 +74,7 @@ func (a *Agent) Workspace(path string) *Workspace {
 		return ws
 	}
 
+	// now look for a symlink in ~/.tractor/workspaces
 	wss, _ := a.Workspaces()
 	for _, ws := range wss {
 		if ws.Name == path || ws.TargetPath == path {
@@ -77,7 +82,41 @@ func (a *Agent) Workspace(path string) *Workspace {
 		}
 	}
 
-	return nil
+	// if full path is a dir with workspace.go, symlink it
+	basename, err := a.symlinkWorkspace(path)
+	if err != nil {
+		return nil
+	}
+
+	return a.Workspace(basename)
+}
+
+func (a *Agent) symlinkWorkspace(path string) (string, error) {
+	fi, err := os.Lstat(filepath.Join(path, "workspace.go"))
+	if err != nil {
+		return "", err
+	}
+
+	if fi.IsDir() {
+		return "", nil
+	}
+
+	basepath := filepath.Base(path)
+	base := basepath
+	i := 1
+	for {
+		err = os.Symlink(path, filepath.Join(a.WorkspacesPath, base))
+		if err != nil && !os.IsExist(err) {
+			return base, err
+		}
+
+		if err == nil {
+			return base, nil
+		}
+
+		i++
+		base = fmt.Sprintf("%s-%d", basepath, i)
+	}
 }
 
 // Workspaces returns the workspaces under this agent's WorkspacesPath.
