@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"syscall"
 
 	"github.com/spf13/cobra"
 )
@@ -29,13 +30,13 @@ func main() {
 
 func init() {
 	rootCmd.AddCommand(agentCmd())
-	rootCmd.AddCommand(runCmd())
+	rootCmd.AddCommand(selfdevCmd())
 
 	ct, cancelFunc := context.WithCancel(context.Background())
 	sigQuit = ct
 
 	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
+	signal.Notify(c, os.Interrupt, os.Kill, syscall.SIGHUP)
 
 	go func(c <-chan os.Signal) {
 		<-c
