@@ -15,9 +15,10 @@ type Agent struct {
 	AgentSocket    string // ~/.tractor/agent.sock
 	WorkspacesPath string // ~/.tractor/workspaces
 	SocketsPath    string // ~/.tractor/sockets
-	Bin            string
-	workspaces     map[string]*Workspace
-	mu             sync.RWMutex
+	GoBin          string
+
+	workspaces map[string]*Workspace
+	mu         sync.RWMutex
 }
 
 func Open(path string) (*Agent, error) {
@@ -28,7 +29,7 @@ func Open(path string) (*Agent, error) {
 
 	a := &Agent{
 		Path:       path,
-		Bin:        bin,
+		GoBin:      bin,
 		workspaces: make(map[string]*Workspace),
 	}
 
@@ -43,6 +44,7 @@ func Open(path string) (*Agent, error) {
 	a.AgentSocket = filepath.Join(a.Path, "agent.sock")
 	a.WorkspacesPath = filepath.Join(a.Path, "workspaces")
 	a.SocketsPath = filepath.Join(a.Path, "sockets")
+
 	os.MkdirAll(a.WorkspacesPath, 0700)
 	os.MkdirAll(a.SocketsPath, 0700)
 
@@ -59,7 +61,7 @@ func (a *Agent) Workspace(path string) *Workspace {
 
 	wss, _ := a.Workspaces()
 	for _, ws := range wss {
-		if ws.Name == path {
+		if ws.Name == path || ws.TargetPath == path {
 			return ws
 		}
 	}
@@ -84,7 +86,7 @@ func (a *Agent) Workspaces() ([]*Workspace, error) {
 	workspaces := make([]*Workspace, 0, len(entries))
 	a.mu.Lock()
 	for _, entry := range entries {
-		if !a.isWorkspace(entry) {
+		if !a.isWorkspaceDir(entry) {
 			continue
 		}
 
@@ -100,7 +102,7 @@ func (a *Agent) Workspaces() ([]*Workspace, error) {
 	return workspaces, nil
 }
 
-func (a *Agent) isWorkspace(fi os.FileInfo) bool {
+func (a *Agent) isWorkspaceDir(fi os.FileInfo) bool {
 	if fi.IsDir() {
 		return true
 	}

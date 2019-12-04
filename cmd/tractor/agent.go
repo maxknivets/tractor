@@ -10,7 +10,7 @@ import (
 	"github.com/manifold/qtalk/libmux/mux"
 	"github.com/manifold/qtalk/qrpc"
 	"github.com/manifold/tractor/pkg/agent"
-	"github.com/manifold/tractor/pkg/agent/icons"
+	"github.com/manifold/tractor/pkg/data/icons"
 	"github.com/skratchdot/open-golang/open"
 	"github.com/spf13/cobra"
 )
@@ -20,6 +20,7 @@ var (
 	devMode         bool
 )
 
+// `tractor agent` command
 func agentCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "agent",
@@ -27,16 +28,10 @@ func agentCmd() *cobra.Command {
 		Long:  "Starts the agent systray app.",
 		Run:   runAgent,
 	}
-	cmd.AddCommand(agentCallCmd())
 	cmd.PersistentFlags().BoolVarP(&devMode, "dev", "d", false, "run in debug mode")
 	cmd.PersistentFlags().StringVarP(&tractorUserPath, "path", "p", "", "path to the user tractor directory (default is ~/.tractor)")
+	cmd.AddCommand(agentCallCmd())
 	return cmd
-}
-
-func openAgent() *agent.Agent {
-	ag, err := agent.Open(tractorUserPath)
-	fatal(err)
-	return ag
 }
 
 func runAgent(cmd *cobra.Command, args []string) {
@@ -51,6 +46,12 @@ func runAgent(cmd *cobra.Command, args []string) {
 	}(ag)
 
 	systray.Run(onReady(ag), ag.Shutdown)
+}
+
+func openAgent() *agent.Agent {
+	ag, err := agent.Open(tractorUserPath)
+	fatal(err)
+	return ag
 }
 
 func agentSockExists(ag *agent.Agent) bool {
@@ -82,7 +83,7 @@ func buildSystray(ag *agent.Agent) {
 		go func(mi *systray.MenuItem, ws *agent.Workspace) {
 			for {
 				<-openItem.ClickedCh
-				open.StartWith(ws.Path, "Visual Studio Code.app")
+				open.StartWith(ws.TargetPath, "Visual Studio Code.app")
 			}
 		}(openItem, ws)
 	}
@@ -98,6 +99,7 @@ func buildSystray(ag *agent.Agent) {
 	systray.Quit()
 }
 
+// `tractor agent call` command
 func agentCallCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "call",
@@ -155,6 +157,10 @@ func agentQRPCCall(w io.Writer, cmd, wspath string) (string, error) {
 	resp, err := client.Call(cmd, wspath, &msg)
 	if err != nil {
 		return msg, err
+	}
+
+	if len(msg) > 0 {
+		fmt.Fprintf(w, "REPLY => %#v\n", msg)
 	}
 
 	if resp.Hijacked {

@@ -11,7 +11,7 @@ import (
 	"github.com/manifold/qtalk/qrpc"
 	"github.com/manifold/tractor/pkg/manifold"
 	//"github.com/manifold/tractor/pkg/repl"
-	"github.com/manifold/tractor/pkg/workspace"
+	workspace "github.com/manifold/tractor/pkg/workspace/state"
 	reflected "github.com/progrium/prototypes/go-reflected"
 )
 

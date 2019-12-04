@@ -1,4 +1,4 @@
-package workspace
+package state
 
 import (
 	"encoding/json"

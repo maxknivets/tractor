@@ -6,8 +6,7 @@ import * as fs from 'fs';
 
 
 import { TreeExplorer } from './manifold';
-
-let serverTask = undefined;
+import { resolveCliPathFromVSCodeExecutablePath } from 'vscode-test';
 
 export function activate(context: vscode.ExtensionContext) {
 	if (vscode.workspace.workspaceFolders === undefined) {
@@ -46,7 +45,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 	
 
-	var tree = new TreeExplorer(context);
+	var tree = new TreeExplorer(context, vscode.workspace.workspaceFolders[0].uri.path);
 	vscode.commands.registerCommand('treeExplorer.addNode', () => {
 		vscode.window.showInputBox({ placeHolder: 'Enter a node name' })
 			.then(value => {
@@ -90,17 +89,8 @@ export function activate(context: vscode.ExtensionContext) {
 		tree.moveNode(node.id, node.index+1);
 	});
 
-
-	serverTask = vscode.tasks.executeTask(new vscode.Task({ type: 'server', task: 'server' }, "server", "tractor", new vscode.ShellExecution(`${path.join(context.extensionPath, '../dev/bin/tractor')} run`)));
-
 	// setTimeout(() => {
 	// 	let repl = vscode.window.createTerminal("repl", path.join(context.extensionPath, '../repl.js'));
 	// 	repl.show();
 	// }, 3000);
-}
-
-export function deactivate() {
-	if (serverTask) {
-		serverTask.terminate();
-	}
 }
