@@ -45,7 +45,7 @@ type TreeNode interface {
 	// or nil if there is no parent.
 	NextSibling() TreeNode
 
-	// PreviousSibling returns the prevopis the sibling of this node
+	// PreviousSibling returns the previous sibling of this node
 	// or nil if there is no parent.
 	PreviousSibling() TreeNode
 
@@ -66,7 +66,7 @@ type TreeNode interface {
 
 	// AppendChild adds the given node to this node's children.
 	// note: triggers a change for objects
-	AppendChild(node TreeNode)
+	AppendChild(child TreeNode)
 
 	// ChildAt returns the child node at the given index. Using an
 	// index of -1 will return the last child.
@@ -77,30 +77,30 @@ type ComponentList interface {
 
 	// AppendComponent adds a component to the component list.
 	// note: triggers a change for objects
-	AppendComponent(com Component)
+	//AppendComponent(com Component2)
 
 	// RemoveComponent removes the given component from the component list.
 	// note: triggers a change for objects
-	RemoveComponent(com Component)
+	//RemoveComponent(com Component2)
 
 	// InsertComponentAt inserts a component to the component list at the index
 	// specified.
 	// note: triggers a change for objects
-	InsertComponentAt(idx int, com Component)
+	//InsertComponentAt(idx int, com Component2)
 
 	// RemoveComponentAt removes and returns the component at the given index.
 	// note: triggers a change for objects
-	RemoveComponentAt(idx int) Component
+	//RemoveComponentAt(idx int) Component2
 
 	// Component returns the component with the given name from the component list.
 	// Since the component name is typically a type and there can be several components
 	// of the same type, the name for each includes a suffix `/` and its index among
 	// the others of the same type. Example: `http.Server/0` returns the first component
 	// named `http.Server`.
-	Component(name string) Component
+	//Component(name string) Component2
 
 	// Components returns all the components in the component list.
-	Components() []Component
+	Components() []Component2
 }
 
 // AttributeSet is an interface for managing internal key-value
@@ -108,7 +108,7 @@ type ComponentList interface {
 // note: potentially implemented on a map[string]interface{} instead of a struct
 type AttributeSet interface {
 	// HasAttribute returns true if the named attribute exists.
-	HasAttribute(attr string) interface{}
+	HasAttribute(attr string) bool
 
 	// GetAttribute returns the named attribute value.
 	GetAttribute(attr string) interface{}
@@ -232,33 +232,33 @@ type Object interface {
 	TreeNode
 	ComponentList
 	AttributeSet
-	ComponentGetter
-	ComponentSetter
-	ComponentCaller
+	//ComponentGetter
+	//ComponentSetter
+	//ComponentCaller
 
 	// Children returns the children of this object.
 	// note: convenience wrapper for TreeNode.ChildNodes() as Objects
-	Children() []Object
+	//Children() []Object
 
 	// Name returns the name of this object.
 	Name() string
 
 	// SetName sets the name of this object.
 	// note: triggers a change for this object
-	SetName(name string)
+	//SetName(name string)
 
 	// ID returns a unique identifier for this object.
-	ID() string
+	//ID() string
 
 	// FindChild returns a descendant of this object that
 	// macthes the name or relative path. It returns nil
 	// if no descendant matches.
-	FindChild(subpath string) Object
+	//FindChild(subpath string) Object
 
 	// FindPointer returns a descendant of this object that
 	// contains a component pointing to the given struct
 	// reference. It returns nil if no components match.
-	FindPointer(ptr interface{}) Object
+	//FindPointer(ptr interface{}) Object
 
 	// Observe registers an observer with the object that
 	// will be notified of changes to the object.
@@ -271,12 +271,12 @@ type Object interface {
 	// MainComponent returns the main component for this object
 	// or nil if there is none. The main component is not kept in
 	// the ComponentList. The main component is often a UserComponent.
-	MainComponent() Component
+	//MainComponent() Component
 
 	// SetMainComponent sets the main component for this object.
 	// If the component exists in the ComponentList, it will be removed.
 	// note: triggers a change for this object
-	SetMainComponent(com Component)
+	//SetMainComponent(com Component)
 
 	// System returns the root parent node of this object as a System
 	// if it is one, otherwise it returns nil.
@@ -288,11 +288,11 @@ type System interface {
 	Object
 
 	// AbsPath returns a full path from root for a given object.
-	AbsPath(obj Object) string
+	//AbsPath(obj Object) string
 
 	// ExpandPath returns a normalized absolute path for a relative
 	// path to the given object.
-	ExpandPath(obj Object, path string) string
+	//ExpandPath(obj Object, path string) string
 
 	// FindID will find an object in the system that has the given
 	// ID or returns nil.
@@ -300,5 +300,5 @@ type System interface {
 
 	// RemoveID will remove and return the object from its parent that has the
 	// given ID, otherwise it returns nil.
-	RemoveID(id string) Object
+	//RemoveID(id string) Object
 }
