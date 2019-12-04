@@ -21,7 +21,24 @@ func ListenAndServe(a *Agent) error {
 			return
 		}
 
-		if err := streamWorkspaceOutput(a, r, ws.Connect); err != nil {
+		out, err := ws.Connect()
+		if err != nil {
+			r.Return(err)
+			return
+		}
+
+		ch, err := r.Hijack(ws.SocketPath)
+		if err != nil {
+			out.Close()
+			r.Return(err)
+			return
+		}
+
+		_, err = io.Copy(ch, out)
+		ch.Close()
+		out.Close()
+
+		if err == io.ErrClosedPipe {
 			r.Return(err)
 			return
 		}
@@ -34,7 +51,10 @@ func ListenAndServe(a *Agent) error {
 			return
 		}
 
-		if err := streamWorkspaceOutput(a, r, ws.Start); err != nil {
+		// TODO: shouldn't stream logs or block, but maybe we show a snippet? -JL
+
+		_, err = ws.Start()
+		if err != nil {
 			r.Return(err)
 			return
 		}
@@ -91,31 +111,6 @@ func wsStatus(a *Agent) (string, error) {
 			ws.Name, ws.Status, p, w)
 	}
 	return strings.Join(pairs, ", "), nil
-}
-
-type workspaceFunc func() (io.ReadCloser, error)
-
-func streamWorkspaceOutput(a *Agent, r qrpc.Responder, fn workspaceFunc) error {
-	out, err := fn()
-	if err != nil {
-		return err
-	}
-
-	ch, err := r.Hijack("ok")
-	if err != nil {
-		out.Close()
-		return err
-	}
-
-	_, err = io.Copy(ch, out)
-	ch.Close()
-	out.Close()
-
-	if err == io.ErrClosedPipe {
-		return nil
-	}
-
-	return err
 }
 
 func findWorkspace(a *Agent, call *qrpc.Call) (*Workspace, error) {
