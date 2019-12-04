@@ -268,8 +268,6 @@ type Object interface {
 	// no longer be notified of changes.
 	Unobserve(observer *ObjectObserver)
 
-	Notify(object Object, path string, old, new interface{})
-
 	// MainComponent returns the main component for this object
 	// or nil if there is none. The main component is not kept in
 	// the ComponentList. The main component is often a UserComponent.
