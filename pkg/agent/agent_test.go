@@ -26,9 +26,9 @@ func TestAgent(t *testing.T) {
 
 	t.Run("paths", func(t *testing.T) {
 		assert.True(t, strings.HasPrefix(ag.Path, os.TempDir()))
-		assert.Equal(t, filepath.Join(ag.Path, "agent.sock"), ag.AgentSocket)
+		assert.Equal(t, filepath.Join(ag.Path, "agent.sock"), ag.SocketPath)
 		assert.Equal(t, filepath.Join(ag.Path, "workspaces"), ag.WorkspacesPath)
-		assert.Equal(t, filepath.Join(ag.Path, "sockets"), ag.SocketsPath)
+		assert.Equal(t, filepath.Join(ag.Path, "sockets"), ag.WorkspaceSocketsPath)
 	})
 
 	t.Run("finds workspaces", func(t *testing.T) {

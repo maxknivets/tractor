@@ -11,11 +11,11 @@ import (
 )
 
 type Agent struct {
-	Path           string // ~/.tractor
-	AgentSocket    string // ~/.tractor/agent.sock
-	WorkspacesPath string // ~/.tractor/workspaces
-	SocketsPath    string // ~/.tractor/sockets
-	GoBin          string
+	Path                 string // ~/.tractor
+	SocketPath           string // ~/.tractor/agent.sock
+	WorkspacesPath       string // ~/.tractor/workspaces
+	WorkspaceSocketsPath string // ~/.tractor/sockets
+	GoBin                string
 
 	workspaces map[string]*Workspace
 	mu         sync.RWMutex
@@ -41,12 +41,12 @@ func Open(path string) (*Agent, error) {
 		a.Path = p
 	}
 
-	a.AgentSocket = filepath.Join(a.Path, "agent.sock")
+	a.SocketPath = filepath.Join(a.Path, "agent.sock")
 	a.WorkspacesPath = filepath.Join(a.Path, "workspaces")
-	a.SocketsPath = filepath.Join(a.Path, "sockets")
+	a.WorkspaceSocketsPath = filepath.Join(a.Path, "sockets")
 
 	os.MkdirAll(a.WorkspacesPath, 0700)
-	os.MkdirAll(a.SocketsPath, 0700)
+	os.MkdirAll(a.WorkspaceSocketsPath, 0700)
 
 	return a, nil
 }
@@ -71,7 +71,7 @@ func (a *Agent) Workspace(path string) *Workspace {
 
 func (a *Agent) Shutdown() {
 	log.Println("[server] shutting down")
-	os.RemoveAll(a.AgentSocket)
+	os.RemoveAll(a.SocketPath)
 	for _, ws := range a.workspaces {
 		ws.Stop()
 	}
