@@ -5,6 +5,7 @@ go 1.12
 require (
 	github.com/armon/circbuf v0.0.0-20190214190532-5111143e8da2
 	github.com/d5/tengo v1.24.3
+	github.com/daviddengcn/go-colortext v0.0.0-20180409174941-186a3d44e920
 	github.com/dustin/go-jsonpointer v0.0.0
 	github.com/getlantern/systray v0.0.0-20191111190243-1a6b33f30317
 	github.com/gliderlabs/com v0.1.1-0.20191023181249-02615ad445ac
@@ -23,11 +24,16 @@ require (
 	github.com/skratchdot/open-golang v0.0.0-20190402232053-79abb63cd66e
 	github.com/spf13/afero v1.2.2
 	github.com/spf13/cobra v0.0.5
-	github.com/stretchr/testify v1.3.0
-	github.com/thejerf/suture v3.0.2+incompatible // indirect
+	github.com/stretchr/testify v1.4.0
+	github.com/thejerf/suture v3.0.2+incompatible
 	github.com/urfave/negroni v1.0.0
+	go.uber.org/atomic v1.5.1 // indirect
+	go.uber.org/multierr v1.4.0 // indirect
+	go.uber.org/zap v1.13.0
 	golang.org/x/crypto v0.0.0-20191117063200-497ca9f6d64f // indirect
+	golang.org/x/lint v0.0.0-20191125180803-fdd1cda4f05f // indirect
 	golang.org/x/net v0.0.0-20191118183410-d06c31c94cae // indirect
+	golang.org/x/tools v0.0.0-20191205215504-7b8c8591a921 // indirect
 	google.golang.org/appengine v1.6.5 // indirect
 	gopkg.in/vmihailenco/msgpack.v2 v2.9.1 // indirect
 )
