@@ -55,7 +55,7 @@ func openAgent() *agent.Agent {
 }
 
 func agentSockExists(ag *agent.Agent) bool {
-	_, err := os.Stat(ag.AgentSocket)
+	_, err := os.Stat(ag.SocketPath)
 	if err != nil {
 		return !os.IsNotExist(err)
 	}
@@ -147,7 +147,7 @@ func runAgentCall(callmethod string) func(cmd *cobra.Command, args []string) {
 
 func agentQRPCCall(w io.Writer, cmd, wspath string) (string, error) {
 	ag := openAgent()
-	sess, err := mux.DialUnix(ag.AgentSocket)
+	sess, err := mux.DialUnix(ag.SocketPath)
 	if err != nil {
 		return "", err
 	}
