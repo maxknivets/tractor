@@ -58,6 +58,7 @@ func ListenAndServe(a *Agent) error {
 			r.Return(err)
 			return
 		}
+		r.Return(fmt.Sprintf("workspace %q started", ws.Name))
 	})
 
 	api.HandleFunc("stop", func(r qrpc.Responder, c *qrpc.Call) {

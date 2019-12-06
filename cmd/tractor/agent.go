@@ -136,7 +136,7 @@ func runAgentCall(callmethod string) func(cmd *cobra.Command, args []string) {
 		wspath := args[0]
 		start := time.Now()
 		_, err := agentQRPCCall(os.Stdout, callmethod, wspath)
-		if err != nil {
+		if err != nil && err != io.EOF {
 			fmt.Printf("qrpc: %s [%s(%q) %s]\n", err, callmethod, wspath, time.Since(start))
 			os.Exit(1)
 			return
@@ -160,7 +160,7 @@ func agentQRPCCall(w io.Writer, cmd, wspath string) (string, error) {
 	}
 
 	if len(msg) > 0 {
-		fmt.Fprintf(w, "REPLY => %#v\n", msg)
+		fmt.Fprintf(w, "REPLY => %s\n", msg)
 	}
 
 	if resp.Hijacked {
