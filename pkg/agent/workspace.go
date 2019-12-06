@@ -93,29 +93,30 @@ func (w *Workspace) Connect() (io.ReadCloser, error) {
 		return out, nil
 	}
 
-	out, err := w.start()
+	err := w.start()
+	out := w.consoleBuf.Pipe()
 	w.mu.Unlock()
 	return out, err
 }
 
 // Start starts the workspace daemon. creates the symlink to the path if it does
 // not exist, using the path basename as the symlink name
-func (w *Workspace) Start() (io.ReadCloser, error) {
+func (w *Workspace) Start() error {
 	w.mu.Lock()
 	log.Println("[workspace]", w.Name, "Start()")
 
 	w.resetPid(StatusPartially)
 
-	out, err := w.start()
+	err := w.start()
 	w.mu.Unlock()
-	return out, err
+	return err
 }
 
 // must run this when the w.mu mutex is locked
-func (w *Workspace) start() (io.ReadCloser, error) {
+func (w *Workspace) start() error {
 	buf, err := NewBuffer(1024 * 1024)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -129,7 +130,7 @@ func (w *Workspace) start() (io.ReadCloser, error) {
 
 	if err := w.daemonCmd.Start(); err != nil {
 		w.setStatus(StatusUnavailable)
-		return nil, err
+		return err
 	}
 
 	w.consoleBuf = buf
@@ -143,7 +144,7 @@ func (w *Workspace) start() (io.ReadCloser, error) {
 		ws.afterWait(c, StatusPartially)
 	}(w.daemonCmd, w)
 
-	return buf.Pipe(), nil
+	return nil
 }
 
 // Stop stops the workspace daemon, deleting the unix socket file.
