@@ -20,15 +20,12 @@ func TestWorkspace(t *testing.T) {
 		require.NotNil(t, ws)
 		assert.Equal(t, int(StatusPartially), int(ws.Status))
 
-		ch := readWorkspace(t, ws.Start)
+		assert.Nil(t, ws.Start())
 		time.Sleep(time.Second)
 		assert.Equal(t, int(StatusAvailable), int(ws.Status))
 
 		ws.Stop()
 		assert.Equal(t, int(StatusPartially), int(ws.Status))
-
-		out := strings.TrimSpace(string(<-ch))
-		assert.True(t, strings.HasPrefix(out, "pid "))
 	})
 
 	t.Run("start/connect/stop", func(t *testing.T) {
@@ -36,7 +33,7 @@ func TestWorkspace(t *testing.T) {
 		require.NotNil(t, ws)
 		assert.Equal(t, int(StatusPartially), int(ws.Status))
 
-		startCh := readWorkspace(t, ws.Start)
+		assert.Nil(t, ws.Start())
 		time.Sleep(time.Second)
 		assert.Equal(t, int(StatusAvailable), int(ws.Status))
 
@@ -46,15 +43,11 @@ func TestWorkspace(t *testing.T) {
 		ws.Stop()
 		assert.Equal(t, int(StatusPartially), int(ws.Status))
 
-		startOut := strings.TrimSpace(string(<-startCh))
-		assert.True(t, strings.HasPrefix(startOut, "pid "))
-
 		connOut := strings.TrimSpace(string(<-connCh))
 		assert.True(t, strings.HasPrefix(connOut, "pid "))
-		assert.Equal(t, startOut, connOut)
 	})
 
-	t.Run("connect/start/stop", func(t *testing.T) {
+	t.Run("connect/stop", func(t *testing.T) {
 		ws := ag.Workspace("test3")
 		require.NotNil(t, ws)
 		assert.Equal(t, int(StatusPartially), int(ws.Status))
@@ -63,19 +56,11 @@ func TestWorkspace(t *testing.T) {
 		time.Sleep(time.Second)
 		assert.Equal(t, int(StatusAvailable), int(ws.Status))
 
-		startCh := readWorkspace(t, ws.Start)
-		time.Sleep(time.Second)
-		assert.Equal(t, int(StatusAvailable), int(ws.Status))
-
 		ws.Stop()
 		assert.Equal(t, int(StatusPartially), int(ws.Status))
 
-		startOut := strings.TrimSpace(string(<-startCh))
-		assert.True(t, strings.HasPrefix(startOut, "pid "))
-
 		connOut := strings.TrimSpace(string(<-connCh))
 		assert.True(t, strings.HasPrefix(connOut, "pid "))
-		assert.NotEqual(t, startOut, connOut)
 	})
 
 	t.Run("erroring workspace", func(t *testing.T) {
@@ -83,7 +68,7 @@ func TestWorkspace(t *testing.T) {
 		require.NotNil(t, ws)
 		assert.Equal(t, int(StatusPartially), int(ws.Status))
 
-		startCh := readWorkspace(t, ws.Start)
+		startCh := readWorkspace(t, ws.Connect)
 		time.Sleep(time.Second)
 		assert.Equal(t, int(StatusUnavailable), int(ws.Status))
 

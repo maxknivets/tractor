@@ -54,9 +54,7 @@ func ListenAndServe(a *Agent) error {
 		}
 
 		// TODO: shouldn't stream logs or block, but maybe we show a snippet? -JL
-
-		_, err = ws.Start()
-		if err != nil {
+		if err := ws.Start(); err != nil {
 			r.Return(err)
 			return
 		}
