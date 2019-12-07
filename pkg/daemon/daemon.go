@@ -2,9 +2,11 @@ package daemon
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/signal"
 	"sync"
+	"sync/atomic"
 	"syscall"
 )
 
@@ -28,9 +30,16 @@ type Daemon struct {
 	Services     []Service
 	Terminators  []Terminator
 	Context      context.Context
+	state        int32
+	cancel       context.CancelFunc
+	errs         chan []error
 }
 
 func (d *Daemon) Run(ctx context.Context) error {
+	if !atomic.CompareAndSwapInt32(&d.state, 0, 1) {
+		return errors.New("already running")
+	}
+
 	// call initializers
 	for _, i := range d.Initializers {
 		if err := i.InitializeDaemon(); err != nil {
@@ -43,32 +52,17 @@ func (d *Daemon) Run(ctx context.Context) error {
 		return nil
 	}
 
-	// setup terminators on stop signals
-	termSigs := make(chan os.Signal, 1)
-	signal.Notify(termSigs, os.Interrupt, os.Kill, syscall.SIGHUP)
-
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	ctx, cancelFunc := context.WithCancel(ctx)
 	d.Context = ctx
+	d.cancel = cancelFunc
+	d.errs = make(chan []error)
 
-	termErr := make(chan error)
-	go func() {
-		select {
-		case <-termSigs:
-		case <-ctx.Done():
-		}
-		cancelFunc()
-		for _, i := range d.Terminators {
-			if err := i.TerminateDaemon(); err != nil {
-				// TODO: better handling of multiple errors
-				termErr <- err
-				break
-			}
-		}
-		close(termErr)
-	}()
+	// setup terminators on stop signals
+	CancelBySignal(d)
+	CancelByContext(d)
 
 	var wg sync.WaitGroup
 	for _, service := range d.Services {
@@ -79,6 +73,42 @@ func (d *Daemon) Run(ctx context.Context) error {
 		}(service)
 	}
 	wg.Wait()
+	errs := <-d.errs
+	if len(errs) > 0 {
+		return errs[0]
+	}
+	return nil
+}
 
-	return <-termErr
+func (d *Daemon) Terminate() {
+	if !atomic.CompareAndSwapInt32(&d.state, 1, 0) {
+		return
+	}
+
+	if d.cancel != nil {
+		d.cancel()
+	}
+	var errs []error
+	for _, i := range d.Terminators {
+		if err := i.TerminateDaemon(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	d.errs <- errs
+}
+
+func CancelBySignal(d *Daemon) {
+	go func() {
+		termSigs := make(chan os.Signal, 1)
+		signal.Notify(termSigs, os.Interrupt, os.Kill, syscall.SIGHUP)
+		<-termSigs
+		d.Terminate()
+	}()
+}
+
+func CancelByContext(d *Daemon) {
+	go func() {
+		<-d.Context.Done()
+		d.Terminate()
+	}()
 }
