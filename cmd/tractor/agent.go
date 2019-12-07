@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -40,10 +41,13 @@ func runAgent(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	fatal(daemon.Run(
+	agsystraySvc := &agentsystrayservice.Service{Agent: ag}
+	dm := daemon.New(
 		&agentservice.Service{Agent: ag},
-		&agentsystrayservice.Service{Agent: ag},
-	))
+		agsystraySvc,
+	)
+	agsystraySvc.OnCancel(dm)
+	fatal(dm.Run(context.Background()))
 }
 
 // `tractor agent call` command

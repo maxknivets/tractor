@@ -6,12 +6,14 @@ import (
 
 	"github.com/getlantern/systray"
 	"github.com/manifold/tractor/pkg/agent"
+	"github.com/manifold/tractor/pkg/daemon"
 	"github.com/manifold/tractor/pkg/data/icons"
 	"github.com/skratchdot/open-golang/open"
 )
 
 type Service struct {
 	Agent *agent.Agent
+	dm    *daemon.Daemon
 }
 
 func (s *Service) Serve(ctx context.Context) {
@@ -21,6 +23,10 @@ func (s *Service) Serve(ctx context.Context) {
 func (s *Service) TerminateDaemon() error {
 	systray.Quit()
 	return nil
+}
+
+func (s *Service) OnCancel(d *daemon.Daemon) {
+	s.dm = d
 }
 
 func (s *Service) buildSystray() func() {
@@ -52,7 +58,7 @@ func (s *Service) buildSystray() func() {
 		mQuitOrig := systray.AddMenuItem("Shutdown", "Quit and shutdown all workspaces")
 		go func(mi *systray.MenuItem) {
 			<-mi.ClickedCh
-			systray.Quit()
+			s.dm.Terminate()
 		}(mQuitOrig)
 	}
 }

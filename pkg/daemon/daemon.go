@@ -99,6 +99,10 @@ func (d *Daemon) Run(ctx context.Context) error {
 }
 
 func (d *Daemon) Terminate() {
+	if d == nil {
+		return
+	}
+
 	if !atomic.CompareAndSwapInt32(&d.state, 1, 0) {
 		return
 	}
