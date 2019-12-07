@@ -35,6 +35,24 @@ type Daemon struct {
 	errs         chan []error
 }
 
+func New(services ...Service) *Daemon {
+	d := &Daemon{Services: services}
+	for _, s := range services {
+		if i, ok := s.(Initializer); ok {
+			d.Initializers = append(d.Initializers, i)
+		}
+		if t, ok := s.(Terminator); ok {
+			d.Terminators = append(d.Terminators, t)
+		}
+	}
+	return d
+}
+
+func Run(services ...Service) error {
+	d := New(services...)
+	return d.Run(context.Background())
+}
+
 func (d *Daemon) Run(ctx context.Context) error {
 	if !atomic.CompareAndSwapInt32(&d.state, 0, 1) {
 		return errors.New("already running")
