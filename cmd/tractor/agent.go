@@ -6,12 +6,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/getlantern/systray"
 	"github.com/manifold/qtalk/libmux/mux"
 	"github.com/manifold/qtalk/qrpc"
 	"github.com/manifold/tractor/pkg/agent"
-	"github.com/manifold/tractor/pkg/data/icons"
-	"github.com/skratchdot/open-golang/open"
+	"github.com/manifold/tractor/pkg/agent/agentservice"
+	"github.com/manifold/tractor/pkg/agent/agentsystrayservice"
+	"github.com/manifold/tractor/pkg/daemon"
 	"github.com/spf13/cobra"
 )
 
@@ -36,67 +36,14 @@ func agentCmd() *cobra.Command {
 
 func runAgent(cmd *cobra.Command, args []string) {
 	ag := openAgent()
-
 	if agentSockExists(ag) && devMode {
 		return
 	}
 
-	go func(a *agent.Agent) {
-		fatal(agent.ListenAndServe(a))
-	}(ag)
-
-	systray.Run(onReady(ag), ag.Shutdown)
-}
-
-func openAgent() *agent.Agent {
-	ag, err := agent.Open(tractorUserPath)
-	fatal(err)
-	return ag
-}
-
-func agentSockExists(ag *agent.Agent) bool {
-	_, err := os.Stat(ag.SocketPath)
-	if err != nil {
-		return !os.IsNotExist(err)
-	}
-	return true
-}
-
-func onReady(ag *agent.Agent) func() {
-	return func() { buildSystray(ag) }
-}
-
-func buildSystray(ag *agent.Agent) {
-	systray.SetIcon(icons.Tractor)
-	systray.SetTooltip("Tractor")
-
-	workspaces, err := ag.Workspaces()
-	fatal(err)
-
-	for _, ws := range workspaces {
-		openItem := systray.AddMenuItem(ws.Name, "Open workspace")
-
-		ws.OnStatusChange(func(ws *agent.Workspace) {
-			openItem.SetIcon(ws.Status.Icon())
-		})
-
-		go func(mi *systray.MenuItem, ws *agent.Workspace) {
-			for {
-				<-openItem.ClickedCh
-				open.StartWith(ws.TargetPath, "Visual Studio Code.app")
-			}
-		}(openItem, ws)
-	}
-
-	systray.AddSeparator()
-	mQuitOrig := systray.AddMenuItem("Shutdown", "Quit and shutdown all workspaces")
-	go func(mi *systray.MenuItem) {
-		<-mi.ClickedCh
-		systray.Quit()
-	}(mQuitOrig)
-
-	<-sigQuit.Done()
-	systray.Quit()
+	fatal(daemon.Run(
+		&agentservice.Service{Agent: ag},
+		&agentsystrayservice.Service{Agent: ag},
+	))
 }
 
 // `tractor agent call` command
@@ -178,4 +125,18 @@ func agentQRPCCall(w io.Writer, cmd, wspath string) (string, error) {
 	}
 
 	return msg, nil
+}
+
+func openAgent() *agent.Agent {
+	ag, err := agent.Open(tractorUserPath)
+	fatal(err)
+	return ag
+}
+
+func agentSockExists(ag *agent.Agent) bool {
+	_, err := os.Stat(ag.SocketPath)
+	if err != nil {
+		return !os.IsNotExist(err)
+	}
+	return true
 }
