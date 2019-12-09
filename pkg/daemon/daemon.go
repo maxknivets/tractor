@@ -3,12 +3,14 @@ package daemon
 import (
 	"context"
 	"errors"
-	"github.com/manifold/tractor/pkg/registry"
+	"log"
 	"os"
 	"os/signal"
 	"sync"
 	"sync/atomic"
 	"syscall"
+
+	"github.com/manifold/tractor/pkg/registry"
 )
 
 // Initializer is initialized before services are started. Returning
@@ -32,26 +34,23 @@ type Daemon struct {
 	Initializers []Initializer
 	Services     []Service
 	Terminators  []Terminator
+	Logger       log.Logger
 	Context      context.Context
 	state        int32
 	cancel       context.CancelFunc
 	errs         chan []error
 }
 
-// New builds a daemon configured to run a set of services.
+// New builds a daemon configured to run a set of services. The services
+// are populated with each other if they have fields that match anything
+// that was passed in.
 func New(services ...Service) *Daemon {
-	d := &Daemon{Services: services}
-	r := registry.New()
-	r.Register(registry.Ref(d))
+	d := &Daemon{}
+	r, _ := registry.New(d)
 	for _, s := range services {
-		r.Populate(s)
-		if i, ok := s.(Initializer); ok {
-			d.Initializers = append(d.Initializers, i)
-		}
-		if t, ok := s.(Terminator); ok {
-			d.Terminators = append(d.Terminators, t)
-		}
+		r.Register(s)
 	}
+	r.SelfPopulate()
 	return d
 }
 
@@ -76,7 +75,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 
 	// finish if no services
 	if len(d.Services) == 0 {
-		return nil
+		return errors.New("no services to run")
 	}
 
 	if ctx == nil {

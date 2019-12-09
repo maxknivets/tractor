@@ -66,13 +66,8 @@ func TestDaemon(t *testing.T) {
 	s3.On("TerminateDaemon").Return(nil)
 	s4.On("TerminateDaemon").Return(nil)
 
-	r := registry.New()
-	require.Nil(t, r.Register(
-		registry.Ref(s1),
-		registry.Ref(s2),
-		registry.Ref(s3),
-		registry.Ref(s4),
-	))
+	r, _ := registry.New()
+	require.Nil(t, r.Register(s1, s2, s3, s4))
 
 	d := &Daemon{}
 	r.Populate(d)
