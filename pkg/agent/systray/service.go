@@ -1,4 +1,4 @@
-package agentsystrayservice
+package systray
 
 import (
 	"context"
