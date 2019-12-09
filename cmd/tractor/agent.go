@@ -10,6 +10,7 @@ import (
 	"github.com/manifold/qtalk/libmux/mux"
 	"github.com/manifold/qtalk/qrpc"
 	"github.com/manifold/tractor/pkg/agent"
+	"github.com/manifold/tractor/pkg/agent/rpc"
 	"github.com/manifold/tractor/pkg/agent/systray"
 	"github.com/manifold/tractor/pkg/daemon"
 	"github.com/spf13/cobra"
@@ -40,12 +41,10 @@ func runAgent(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	agsystraySvc := &systray.Service{Agent: ag}
 	dm := daemon.New(
+		&rpc.Service{Agent: ag},
 		&systray.Service{Agent: ag},
-		agsystraySvc,
 	)
-	agsystraySvc.OnCancel(dm)
 	fatal(dm.Run(context.Background()))
 }
 

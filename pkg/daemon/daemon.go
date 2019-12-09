@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"errors"
+	"github.com/manifold/tractor/pkg/registry"
 	"os"
 	"os/signal"
 	"sync"
@@ -21,10 +22,12 @@ type Terminator interface {
 	TerminateDaemon() error
 }
 
+// Service is run after the daemon is initialized.
 type Service interface {
 	Serve(ctx context.Context)
 }
 
+// Daemon is a top-level daemon lifecycle manager runs services given to it.
 type Daemon struct {
 	Initializers []Initializer
 	Services     []Service
@@ -35,9 +38,13 @@ type Daemon struct {
 	errs         chan []error
 }
 
+// New builds a daemon configured to run a set of services.
 func New(services ...Service) *Daemon {
 	d := &Daemon{Services: services}
+	r := registry.New()
+	r.Register(registry.Ref(d))
 	for _, s := range services {
+		r.Populate(s)
 		if i, ok := s.(Initializer); ok {
 			d.Initializers = append(d.Initializers, i)
 		}
@@ -48,11 +55,13 @@ func New(services ...Service) *Daemon {
 	return d
 }
 
+// Run creates a daemon from services and runs it with a background context
 func Run(services ...Service) error {
 	d := New(services...)
 	return d.Run(context.Background())
 }
 
+// Run executes the daemon lifecycle
 func (d *Daemon) Run(ctx context.Context) error {
 	if !atomic.CompareAndSwapInt32(&d.state, 0, 1) {
 		return errors.New("already running")
@@ -79,8 +88,8 @@ func (d *Daemon) Run(ctx context.Context) error {
 	d.errs = make(chan []error)
 
 	// setup terminators on stop signals
-	CancelBySignal(d)
-	CancelByContext(d)
+	go TerminateOnSignal(d)
+	go TerminateOnContextDone(d)
 
 	var wg sync.WaitGroup
 	for _, service := range d.Services {
@@ -98,6 +107,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 	return nil
 }
 
+// Terminate cancels the daemon context and calls Terminator hooks.
 func (d *Daemon) Terminate() {
 	if d == nil {
 		return
@@ -119,18 +129,16 @@ func (d *Daemon) Terminate() {
 	d.errs <- errs
 }
 
-func CancelBySignal(d *Daemon) {
-	go func() {
-		termSigs := make(chan os.Signal, 1)
-		signal.Notify(termSigs, os.Interrupt, os.Kill, syscall.SIGHUP)
-		<-termSigs
-		d.Terminate()
-	}()
+// TerminateOnSignal waits for SIGINT, SIGHUP, SIGKILL(?) to terminate the daemon.
+func TerminateOnSignal(d *Daemon) {
+	termSigs := make(chan os.Signal, 1)
+	signal.Notify(termSigs, os.Interrupt, os.Kill, syscall.SIGHUP)
+	<-termSigs
+	d.Terminate()
 }
 
-func CancelByContext(d *Daemon) {
-	go func() {
-		<-d.Context.Done()
-		d.Terminate()
-	}()
+// TerminateOnContextDone waits for the deamon's context to be canceled.
+func TerminateOnContextDone(d *Daemon) {
+	<-d.Context.Done()
+	d.Terminate()
 }
