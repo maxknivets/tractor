@@ -80,6 +80,10 @@ func (r *Registry) Populate(v interface{}) {
 	// TODO: assert struct
 	var fields []reflect.Value
 	for i := 0; i < rv.Elem().NumField(); i++ {
+		// filter out unexported fields
+		if len(rv.Elem().Type().Field(i).PkgPath) > 0 {
+			continue
+		}
 		fields = append(fields, rv.Elem().Field(i))
 		// TODO: filtering with struct tags
 	}

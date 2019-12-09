@@ -66,9 +66,10 @@ type injectTest struct {
 	Foo    *namedStruct
 	Foos   []*namedStruct
 	Number fmt.Stringer
+	unfoo  *namedStruct
 }
 
-func TestInjection(t *testing.T) {
+func TestPopulate(t *testing.T) {
 	r := New()
 	require.Nil(t, r.Register(
 		Ref(&fooString{"123"}),
@@ -85,6 +86,7 @@ func TestInjection(t *testing.T) {
 
 	require.NotNil(t, obj.Foo)
 	require.NotNil(t, obj.Number)
+	require.Nil(t, obj.unfoo)
 	assert.Equal(t, obj.Foo.Name, "foo1")
 	assert.Equal(t, len(obj.Foos), 2)
 	assert.Equal(t, obj.Number.String(), "123")
