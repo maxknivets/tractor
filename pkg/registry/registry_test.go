@@ -32,9 +32,9 @@ func TestRegistry(t *testing.T) {
 	v := namedStruct{
 		Name: "bar",
 	}
-	e := Ref(&v)
-	r := New()
-	require.Nil(t, r.Register(e))
+	e := &Entry{Ref: &v}
+	r, err := New(e)
+	require.Nil(t, err)
 
 	entries := r.Entries()
 	assert.Equal(t, 1, len(entries))
@@ -51,10 +51,10 @@ func TestAssignableTo(t *testing.T) {
 	v2 := &namedStruct{
 		Name: "v2",
 	}
-	r := New()
+	r, _ := New()
 	require.Nil(t, r.Register(
-		Ref(v1),
-		Ref(v2),
+		Entry{Ref: v1},
+		Entry{Ref: v2},
 	))
 
 	typ := reflect.TypeOf(v1)
@@ -70,15 +70,15 @@ type injectTest struct {
 }
 
 func TestPopulate(t *testing.T) {
-	r := New()
+	r, _ := New()
 	require.Nil(t, r.Register(
-		Ref(&fooString{"123"}),
-		Ref(&namedStruct{
+		Entry{Ref: &fooString{"123"}},
+		Entry{Ref: &namedStruct{
 			Name: "foo1",
-		}),
-		Ref(&namedStruct{
+		}},
+		Entry{Ref: &namedStruct{
 			Name: "foo2",
-		}),
+		}},
 	))
 
 	obj := &injectTest{}
@@ -90,4 +90,27 @@ func TestPopulate(t *testing.T) {
 	assert.Equal(t, obj.Foo.Name, "foo1")
 	assert.Equal(t, len(obj.Foos), 2)
 	assert.Equal(t, obj.Number.String(), "123")
+}
+
+type selfTypeA struct {
+	TypeB *selfTypeB
+}
+
+type selfTypeB struct {
+	TypeA *selfTypeA
+}
+
+func TestSelfPopulate(t *testing.T) {
+	a := &selfTypeA{}
+	b := &selfTypeB{}
+	r, err := New(a, b)
+	require.Nil(t, err)
+
+	require.Nil(t, a.TypeB)
+	require.Nil(t, b.TypeA)
+
+	r.SelfPopulate()
+
+	assert.Equal(t, b, a.TypeB)
+	assert.Equal(t, a, b.TypeA)
 }
