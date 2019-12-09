@@ -29,7 +29,12 @@ var colors = []ct.Color{
 func (of *Console) LineReader(wg *sync.WaitGroup, name string, index int, r io.Reader, isError bool) {
 	defer wg.Done()
 
-	color := colors[index%len(colors)]
+	var color ct.Color
+	if index == -1 {
+		color = ct.White
+	} else {
+		color = colors[index%len(colors)]
+	}
 
 	reader := bufio.NewReader(r)
 
@@ -57,10 +62,6 @@ func (of *Console) LineReader(wg *sync.WaitGroup, name string, index int, r io.R
 
 		buffer.Write(buf)
 	}
-}
-
-func (of *Console) SystemOutput(str string) {
-	of.WriteLine("tractor", str, ct.White, ct.None, false)
 }
 
 // Write out a single coloured line
