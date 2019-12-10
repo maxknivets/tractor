@@ -42,7 +42,6 @@ func (s *Service) Serve(ctx context.Context) {
 	if err := server.Serve(s.l, s.api); err != nil {
 		fmt.Println(err)
 	}
-	os.Remove(s.Agent.SocketPath)
 }
 
 func (s *Service) TerminateDaemon() error {
