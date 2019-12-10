@@ -18,9 +18,14 @@ import (
 type Service struct {
 	Agent *agent.Agent
 	api   qrpc.API
+	l     mux.Listener
 }
 
-func (s *Service) InitializeDaemon() error {
+func (s *Service) InitializeDaemon() (err error) {
+	if s.l, err = mux.ListenUnix(s.Agent.SocketPath); err != nil {
+		return err
+	}
+
 	s.api = qrpc.NewAPI()
 	s.api.HandleFunc("connect", s.Connect())
 	s.api.HandleFunc("start", s.Start())
@@ -30,25 +35,19 @@ func (s *Service) InitializeDaemon() error {
 
 func (s *Service) Serve(ctx context.Context) {
 	server := &qrpc.Server{}
-	l, err := mux.ListenUnix(s.Agent.SocketPath)
-	if err != nil {
-		fmt.Printf("error listening to unix://%s: %+v\n", s.Agent.SocketPath, err)
-		return
-	}
 
 	s.periodicStatus()
 
 	log.Printf("[server] unix://%s", s.Agent.SocketPath)
-	if err = server.Serve(l, s.api); err != nil {
+	if err := server.Serve(s.l, s.api); err != nil {
 		fmt.Println(err)
 	}
 	os.Remove(s.Agent.SocketPath)
-	return
-
 }
 
 func (s *Service) TerminateDaemon() error {
 	s.Agent.Shutdown()
+	os.Remove(s.Agent.SocketPath)
 	return nil
 }
 
