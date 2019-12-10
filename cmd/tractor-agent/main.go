@@ -2,70 +2,78 @@ package main
 
 import (
 	"context"
+	"log"
 	"os"
-	"sync"
-	"time"
 
 	"github.com/manifold/tractor/pkg/agent"
-	"github.com/manifold/tractor/pkg/console"
+	"github.com/manifold/tractor/pkg/agent/logger"
+	"github.com/manifold/tractor/pkg/agent/rpc"
+	"github.com/manifold/tractor/pkg/agent/selfdev"
+	"github.com/manifold/tractor/pkg/agent/systray"
 	"github.com/manifold/tractor/pkg/daemon"
-	"github.com/manifold/tractor/pkg/log"
-	"github.com/manifold/tractor/pkg/log/std"
-	"github.com/manifold/tractor/pkg/registry"
+	"github.com/spf13/cobra"
 )
 
-type tempService struct {
-	Log log.InfoLogger
-}
-
-func (s *tempService) InitializeDaemon() error {
-	s.Log.Info("Hello!")
-	return nil
-}
-
-func (s *tempService) TerminateDaemon() error {
-	s.Log.Info("Goodbye!")
-	return nil
-}
-
-func (s *tempService) Serve(ctx context.Context) {
-	for {
-		<-time.After(2 * time.Second)
-		select {
-		case <-ctx.Done():
-			return
-		default:
-		}
-		s.Log.Infof("serving: %d", time.Now().Unix())
+var (
+	rootCmd = &cobra.Command{
+		Use:   "tractor-agent",
+		Short: "Tractor Agent",
+		Long:  "Tractor Agent",
+		Run:   runAgent,
 	}
+
+	tractorUserPath string
+	devMode         bool
+)
+
+func init() {
+	rootCmd.PersistentFlags().BoolVarP(&devMode, "dev", "d", false, "run in debug mode")
+	rootCmd.PersistentFlags().StringVarP(&tractorUserPath, "path", "p", "", "path to the user tractor directory (default is ~/.tractor)")
 }
 
 func main() {
-	debugService := new(tempService)
-	buf, err := agent.NewBuffer(1024)
+	rootCmd.Execute()
+}
+
+func runAgent(cmd *cobra.Command, args []string) {
+	ag := openAgent()
+	if agentSockExists(ag) && devMode {
+		return
+	}
+	services := []daemon.Service{
+		logger.New(),
+
+		// this must be first so it terminates last. limitation of library used.
+		// https://github.com/getlantern/systray/issues/47
+		&systray.Service{Agent: ag},
+
+		&rpc.Service{Agent: ag},
+	}
+	if devMode {
+		services = append(services, []daemon.Service{
+			&selfdev.Service{Agent: ag},
+		}...)
+	}
+	dm := daemon.New(services...)
+	fatal(dm.Run(context.Background()))
+}
+
+func openAgent() *agent.Agent {
+	ag, err := agent.Open(tractorUserPath)
+	fatal(err)
+	return ag
+}
+
+func agentSockExists(ag *agent.Agent) bool {
+	_, err := os.Stat(ag.SocketPath)
 	if err != nil {
-		panic(err)
+		return !os.IsNotExist(err)
 	}
-	logger := std.NewLogger("", buf)
+	return true
+}
 
-	pipe := buf.Pipe()
-	var wg sync.WaitGroup
-	c := &console.Console{
-		Output: os.Stdout,
+func fatal(err error) {
+	if err != nil {
+		log.Fatal(err)
 	}
-	c.SystemOutput("Hello")
-	wg.Add(1)
-	go c.LineReader(&wg, "BLAH", 0, pipe, false)
-
-	r := registry.New()
-	r.Register(
-		registry.Ref(debugService),
-		registry.Ref(logger),
-	)
-	r.Populate(debugService)
-
-	d := new(daemon.Daemon)
-	r.Populate(d)
-
-	d.Run(context.Background())
 }

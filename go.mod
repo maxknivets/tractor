@@ -7,13 +7,16 @@ require (
 	github.com/d5/tengo v1.24.3
 	github.com/daviddengcn/go-colortext v0.0.0-20180409174941-186a3d44e920
 	github.com/dustin/go-jsonpointer v0.0.0
-	github.com/getlantern/systray v0.0.0-20191111190243-1a6b33f30317
+	github.com/getlantern/systray v0.0.0-20191210013027-82c477f5e254
+	github.com/getlantern/uuid v1.2.0 // indirect
 	github.com/gliderlabs/com v0.1.1-0.20191023181249-02615ad445ac
 	github.com/gliderlabs/stdcom v0.0.0-20171109193247-64a0d4e5fd86
 	github.com/goji/httpauth v0.0.0-20160601135302-2da839ab0f4d
 	github.com/hashicorp/yamux v0.0.0-20190923154419-df201c70410d // indirect
 	github.com/inconshreveable/muxado v0.0.0-20160802230925-fc182d90f26e // indirect
 	github.com/lucas-clemente/quic-go v0.13.1 // indirect
+	github.com/lxn/walk v0.0.0-20191128110447-55ccb3a9f5c1 // indirect
+	github.com/lxn/win v0.0.0-20191128105842-2da648fda5b4 // indirect
 	github.com/manifold/qtalk v0.0.0-20191117202844-f1ce2a287d67
 	github.com/mitchellh/hashstructure v1.0.0
 	github.com/mitchellh/mapstructure v1.1.2
@@ -33,6 +36,7 @@ require (
 	golang.org/x/crypto v0.0.0-20191117063200-497ca9f6d64f // indirect
 	golang.org/x/lint v0.0.0-20191125180803-fdd1cda4f05f // indirect
 	golang.org/x/net v0.0.0-20191118183410-d06c31c94cae // indirect
+	golang.org/x/sys v0.0.0-20191210023423-ac6580df4449 // indirect
 	golang.org/x/tools v0.0.0-20191205215504-7b8c8591a921 // indirect
 	google.golang.org/appengine v1.6.5 // indirect
 	gopkg.in/vmihailenco/msgpack.v2 v2.9.1 // indirect

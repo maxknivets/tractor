@@ -3,11 +3,15 @@ package daemon
 import (
 	"context"
 	"errors"
+	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"sync"
 	"sync/atomic"
 	"syscall"
+
+	"github.com/manifold/tractor/pkg/registry"
 )
 
 // Initializer is initialized before services are started. Returning
@@ -21,38 +25,43 @@ type Terminator interface {
 	TerminateDaemon() error
 }
 
+// Service is run after the daemon is initialized.
 type Service interface {
 	Serve(ctx context.Context)
 }
 
+// Daemon is a top-level daemon lifecycle manager runs services given to it.
 type Daemon struct {
 	Initializers []Initializer
 	Services     []Service
 	Terminators  []Terminator
+	Logger       log.Logger
 	Context      context.Context
 	state        int32
 	cancel       context.CancelFunc
-	errs         chan []error
+	termErrs     chan []error
 }
 
+// New builds a daemon configured to run a set of services. The services
+// are populated with each other if they have fields that match anything
+// that was passed in.
 func New(services ...Service) *Daemon {
-	d := &Daemon{Services: services}
+	d := &Daemon{}
+	r, _ := registry.New(d)
 	for _, s := range services {
-		if i, ok := s.(Initializer); ok {
-			d.Initializers = append(d.Initializers, i)
-		}
-		if t, ok := s.(Terminator); ok {
-			d.Terminators = append(d.Terminators, t)
-		}
+		r.Register(s)
 	}
+	r.SelfPopulate()
 	return d
 }
 
+// Run creates a daemon from services and runs it with a background context
 func Run(services ...Service) error {
 	d := New(services...)
 	return d.Run(context.Background())
 }
 
+// Run executes the daemon lifecycle
 func (d *Daemon) Run(ctx context.Context) error {
 	if !atomic.CompareAndSwapInt32(&d.state, 0, 1) {
 		return errors.New("already running")
@@ -67,7 +76,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 
 	// finish if no services
 	if len(d.Services) == 0 {
-		return nil
+		return errors.New("no services to run")
 	}
 
 	if ctx == nil {
@@ -76,11 +85,11 @@ func (d *Daemon) Run(ctx context.Context) error {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	d.Context = ctx
 	d.cancel = cancelFunc
-	d.errs = make(chan []error)
+	d.termErrs = make(chan []error)
 
 	// setup terminators on stop signals
-	CancelBySignal(d)
-	CancelByContext(d)
+	go TerminateOnSignal(d)
+	go TerminateOnContextDone(d)
 
 	var wg sync.WaitGroup
 	for _, service := range d.Services {
@@ -90,14 +99,28 @@ func (d *Daemon) Run(ctx context.Context) error {
 			wg.Done()
 		}(service)
 	}
-	wg.Wait()
-	errs := <-d.errs
+
+	finished := make(chan bool)
+	go func() {
+		wg.Wait()
+		close(finished)
+	}()
+
+	var errs []error
+	select {
+	case <-finished:
+		errs = <-d.termErrs
+	case errs = <-d.termErrs:
+		fmt.Println("warning: unfinished services")
+	}
+
 	if len(errs) > 0 {
 		return errs[0]
 	}
 	return nil
 }
 
+// Terminate cancels the daemon context and calls Terminators in reverse order
 func (d *Daemon) Terminate() {
 	if d == nil {
 		return
@@ -110,27 +133,26 @@ func (d *Daemon) Terminate() {
 	if d.cancel != nil {
 		d.cancel()
 	}
+
 	var errs []error
-	for _, i := range d.Terminators {
-		if err := i.TerminateDaemon(); err != nil {
+	for i := len(d.Terminators) - 1; i >= 0; i-- {
+		if err := d.Terminators[i].TerminateDaemon(); err != nil {
 			errs = append(errs, err)
 		}
 	}
-	d.errs <- errs
+	d.termErrs <- errs
 }
 
-func CancelBySignal(d *Daemon) {
-	go func() {
-		termSigs := make(chan os.Signal, 1)
-		signal.Notify(termSigs, os.Interrupt, os.Kill, syscall.SIGHUP)
-		<-termSigs
-		d.Terminate()
-	}()
+// TerminateOnSignal waits for SIGINT, SIGHUP, SIGTERM, SIGKILL(?) to terminate the daemon.
+func TerminateOnSignal(d *Daemon) {
+	termSigs := make(chan os.Signal, 1)
+	signal.Notify(termSigs, os.Interrupt, os.Kill, syscall.SIGHUP, syscall.SIGTERM)
+	<-termSigs
+	d.Terminate()
 }
 
-func CancelByContext(d *Daemon) {
-	go func() {
-		<-d.Context.Done()
-		d.Terminate()
-	}()
+// TerminateOnContextDone waits for the deamon's context to be canceled.
+func TerminateOnContextDone(d *Daemon) {
+	<-d.Context.Done()
+	d.Terminate()
 }

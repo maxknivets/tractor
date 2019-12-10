@@ -14,7 +14,7 @@ import (
 
 var (
 	_, b, _, _ = runtime.Caller(0)
-	pkgpath    = filepath.Dir(b)
+	pkgpath    = filepath.Join(filepath.Dir(b), "testutil")
 )
 
 func TestAgent(t *testing.T) {
