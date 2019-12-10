@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/manifold/tractor/pkg/agent"
 	"github.com/manifold/tractor/pkg/agent/logger"
@@ -22,9 +20,6 @@ var (
 		Run:   runAgent,
 	}
 
-	// context that cancels when an os signal to quit the app has been received.
-	sigQuit context.Context
-
 	tractorUserPath string
 	devMode         bool
 )
@@ -32,17 +27,6 @@ var (
 func init() {
 	rootCmd.PersistentFlags().BoolVarP(&devMode, "dev", "d", false, "run in debug mode")
 	rootCmd.PersistentFlags().StringVarP(&tractorUserPath, "path", "p", "", "path to the user tractor directory (default is ~/.tractor)")
-
-	ct, cancelFunc := context.WithCancel(context.Background())
-	sigQuit = ct
-
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, os.Kill, syscall.SIGHUP)
-
-	go func(c <-chan os.Signal) {
-		<-c
-		cancelFunc()
-	}(c)
 }
 
 func main() {
