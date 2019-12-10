@@ -41,10 +41,12 @@ func runAgent(cmd *cobra.Command, args []string) {
 		return
 	}
 
+	stray := &systray.Service{Agent: ag}
 	dm := daemon.New(
 		&rpc.Service{Agent: ag},
-		&systray.Service{Agent: ag},
+		stray,
 	)
+	stray.SetDaemon(dm)
 	fatal(dm.Run(context.Background()))
 }
 
