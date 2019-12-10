@@ -2,11 +2,13 @@ package main
 
 import (
 	"context"
+	"log"
 	"os"
 
 	"github.com/manifold/tractor/pkg/agent"
 	"github.com/manifold/tractor/pkg/agent/logger"
 	"github.com/manifold/tractor/pkg/agent/rpc"
+	"github.com/manifold/tractor/pkg/agent/selfdev"
 	"github.com/manifold/tractor/pkg/agent/systray"
 	"github.com/manifold/tractor/pkg/daemon"
 	"github.com/spf13/cobra"
@@ -38,12 +40,21 @@ func runAgent(cmd *cobra.Command, args []string) {
 	if agentSockExists(ag) && devMode {
 		return
 	}
-
-	dm := daemon.New(
+	services := []daemon.Service{
 		logger.New(),
-		&rpc.Service{Agent: ag},
+
+		// this must be first so it terminates last. limitation of library used.
+		// https://github.com/getlantern/systray/issues/47
 		&systray.Service{Agent: ag},
-	)
+
+		&rpc.Service{Agent: ag},
+	}
+	if devMode {
+		services = append(services, []daemon.Service{
+			&selfdev.Service{Agent: ag},
+		}...)
+	}
+	dm := daemon.New(services...)
 	fatal(dm.Run(context.Background()))
 }
 
@@ -63,6 +74,6 @@ func agentSockExists(ag *agent.Agent) bool {
 
 func fatal(err error) {
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 }
