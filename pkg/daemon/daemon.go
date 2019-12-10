@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -38,7 +39,7 @@ type Daemon struct {
 	Context      context.Context
 	state        int32
 	cancel       context.CancelFunc
-	errs         chan []error
+	termErrs     chan []error
 }
 
 // New builds a daemon configured to run a set of services. The services
@@ -84,7 +85,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 	ctx, cancelFunc := context.WithCancel(ctx)
 	d.Context = ctx
 	d.cancel = cancelFunc
-	d.errs = make(chan []error)
+	d.termErrs = make(chan []error)
 
 	// setup terminators on stop signals
 	go TerminateOnSignal(d)
@@ -98,8 +99,21 @@ func (d *Daemon) Run(ctx context.Context) error {
 			wg.Done()
 		}(service)
 	}
-	wg.Wait()
-	errs := <-d.errs
+
+	finished := make(chan bool)
+	go func() {
+		wg.Wait()
+		close(finished)
+	}()
+
+	var errs []error
+	select {
+	case <-finished:
+		errs = <-d.termErrs
+	case errs = <-d.termErrs:
+		fmt.Println("warning: unfinished services")
+	}
+
 	if len(errs) > 0 {
 		return errs[0]
 	}
@@ -119,19 +133,20 @@ func (d *Daemon) Terminate() {
 	if d.cancel != nil {
 		d.cancel()
 	}
+
 	var errs []error
 	for i := len(d.Terminators) - 1; i >= 0; i-- {
 		if err := d.Terminators[i].TerminateDaemon(); err != nil {
 			errs = append(errs, err)
 		}
 	}
-	d.errs <- errs
+	d.termErrs <- errs
 }
 
-// TerminateOnSignal waits for SIGINT, SIGHUP, SIGKILL(?) to terminate the daemon.
+// TerminateOnSignal waits for SIGINT, SIGHUP, SIGTERM, SIGKILL(?) to terminate the daemon.
 func TerminateOnSignal(d *Daemon) {
 	termSigs := make(chan os.Signal, 1)
-	signal.Notify(termSigs, os.Interrupt, os.Kill, syscall.SIGHUP)
+	signal.Notify(termSigs, os.Interrupt, os.Kill, syscall.SIGHUP, syscall.SIGTERM)
 	<-termSigs
 	d.Terminate()
 }
