@@ -106,7 +106,7 @@ func (d *Daemon) Run(ctx context.Context) error {
 	return nil
 }
 
-// Terminate cancels the daemon context and calls Terminator hooks.
+// Terminate cancels the daemon context and calls Terminators in reverse order
 func (d *Daemon) Terminate() {
 	if d == nil {
 		return
@@ -120,8 +120,8 @@ func (d *Daemon) Terminate() {
 		d.cancel()
 	}
 	var errs []error
-	for _, i := range d.Terminators {
-		if err := i.TerminateDaemon(); err != nil {
+	for i := len(d.Terminators) - 1; i >= 0; i-- {
+		if err := d.Terminators[i].TerminateDaemon(); err != nil {
 			errs = append(errs, err)
 		}
 	}
