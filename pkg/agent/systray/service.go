@@ -21,12 +21,8 @@ func (s *Service) Serve(ctx context.Context) {
 }
 
 func (s *Service) TerminateDaemon() error {
-	systray.Quit()
+	systray.Quit() // FIXME: THIS TERMINATES THE PROCESS
 	return nil
-}
-
-func (s *Service) OnCancel(d *daemon.Daemon) {
-	s.dm = d
 }
 
 func (s *Service) buildSystray() func() {
