@@ -17,10 +17,12 @@ var (
 	inbox = make(chan api.Message)
 	icons = map[string][]byte{
 		"tractor":     iconData.Tractor,
-		"unavailable": iconData.Unavailable,
-		"available":   iconData.Available,
-		"partially":   iconData.Partially,
+		"Unavailable": iconData.Unavailable,
+		"Available":   iconData.Available,
+		"Partially":   iconData.Partially,
 	}
+
+	menuItems []*systray.MenuItem
 )
 
 func Run() {
@@ -69,13 +71,42 @@ func onReady() {
 		switch msg.Type {
 		case api.InitMenu:
 			initMenu(msg.Menu)
+		case api.ItemUpdate:
+			updateItem(msg.Idx, msg.Item)
 		default:
 			// TODO?
 		}
 	}
 }
 
+func updateItem(idx int, item *api.MenuItem) {
+	if idx < 0 || idx > len(menuItems)-1 {
+		return
+	}
+	applyItem(menuItems[idx], item)
+}
+
+func applyItem(i *systray.MenuItem, ii *api.MenuItem) {
+	i.SetTitle(ii.Title)
+	i.SetTooltip(ii.Tooltip)
+	if ii.Checked {
+		i.Check()
+	} else {
+		i.Uncheck()
+	}
+	if ii.Enabled {
+		i.Enable()
+	} else {
+		i.Disable()
+	}
+	if ii.Icon != "" {
+		i.SetIcon(icons[ii.Icon])
+	}
+}
+
 func initMenu(menu *api.Menu) {
+	menuItems = nil
+
 	if menu.Icon != "" {
 		systray.SetIcon(icons[menu.Icon])
 	}
@@ -88,21 +119,11 @@ func initMenu(menu *api.Menu) {
 			continue
 		}
 		menuItem := systray.AddMenuItem(item.Title, item.Tooltip)
-		if item.Checked {
-			menuItem.Check()
-		} else {
-			menuItem.Uncheck()
-		}
-		if item.Enabled {
-			menuItem.Enable()
-		} else {
-			menuItem.Disable()
-		}
-		if item.Icon != "" {
-			menuItem.SetIcon(icons[item.Icon])
-		}
+		menuItems = append(menuItems, menuItem)
+		applyItem(menuItem, &item)
 		go func(menuItem *systray.MenuItem, item api.MenuItem) {
 			for range menuItem.ClickedCh {
+				// FIXME: this will only send the original item, even if the item updates
 				sendMessage(api.Message{
 					Type: api.ItemClicked,
 					Item: &item,

@@ -20,6 +20,7 @@ type Message struct {
 	Item  *MenuItem   `json:"item,omitempty"`
 	Menu  *Menu       `json:"menu,omitempty"`
 	Error *string     `json:"error,omitempty"`
+	Idx   int         `json:"idx,omitempty"`
 }
 
 type MessageType string
@@ -27,5 +28,6 @@ type MessageType string
 const (
 	InitMenu    MessageType = "init-menu"
 	ItemClicked MessageType = "item-clicked"
+	ItemUpdate  MessageType = "item-update"
 	Error       MessageType = "error"
 )
