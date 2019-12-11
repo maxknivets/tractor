@@ -12,13 +12,13 @@ import (
 	"github.com/manifold/tractor/pkg/agent"
 	"github.com/manifold/tractor/pkg/agent/logger"
 	"github.com/manifold/tractor/pkg/daemon"
-	"github.com/manifold/tractor/pkg/log"
+	"github.com/manifold/tractor/pkg/logging"
 )
 
 type Service struct {
 	Agent   *agent.Agent
 	Daemon  *daemon.Daemon
-	Logger  log.DebugLogger
+	Logger  logging.DebugLogger
 	Console *logger.Service
 
 	watcher *fsnotify.Watcher

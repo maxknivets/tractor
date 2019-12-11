@@ -1,4 +1,4 @@
-// Package log defines a consistent logging API that can be used from registered
+// Package logging defines a consistent logging API that can be used from registered
 // objects. This gives the component ecosystem the option to perform logging
 // without deciding on the logger that must be used. It also allows apps to
 // switch out loggers in different scenarios.
@@ -20,4 +20,4 @@
 //
 // This leaves the semantics of Error up to the app. If used, we suggest
 // reserving it for logging unhandled error objects.
-package log
+package logging

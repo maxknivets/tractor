@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"os"
@@ -10,9 +9,6 @@ import (
 	"github.com/manifold/qtalk/libmux/mux"
 	"github.com/manifold/qtalk/qrpc"
 	"github.com/manifold/tractor/pkg/agent"
-	"github.com/manifold/tractor/pkg/agent/rpc"
-	"github.com/manifold/tractor/pkg/agent/systray"
-	"github.com/manifold/tractor/pkg/daemon"
 	"github.com/spf13/cobra"
 )
 
@@ -27,25 +23,11 @@ func agentCmd() *cobra.Command {
 		Use:   "agent",
 		Short: "Starts the agent systray app",
 		Long:  "Starts the agent systray app.",
-		Run:   runAgent,
 	}
 	cmd.PersistentFlags().BoolVarP(&devMode, "dev", "d", false, "run in debug mode")
 	cmd.PersistentFlags().StringVarP(&tractorUserPath, "path", "p", "", "path to the user tractor directory (default is ~/.tractor)")
 	cmd.AddCommand(agentCallCmd())
 	return cmd
-}
-
-func runAgent(cmd *cobra.Command, args []string) {
-	ag := openAgent()
-	if agentSockExists(ag) && devMode {
-		return
-	}
-
-	dm := daemon.New(
-		&rpc.Service{Agent: ag},
-		&systray.Service{Agent: ag},
-	)
-	fatal(dm.Run(context.Background()))
 }
 
 // `tractor agent call` command

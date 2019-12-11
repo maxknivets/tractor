@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 
@@ -41,15 +42,20 @@ func runAgent(cmd *cobra.Command, args []string) {
 		subprocess.Run()
 		return
 	}
+	ctx := context.Background()
 
+	logs := logger.New()
 	ag := openAgent()
+	ag.Logger = logs
 	if agentSockExists(ag) && devMode {
-		log.Println("Agent will not run in dev mode if agent socket exists.")
+		fmt.Println("Agent will not run in dev mode if agent socket exists.")
 		return
 	}
+	wsCh := make(chan struct{})
+	go ag.Watch(ctx, wsCh)
 	services := []daemon.Service{
-		logger.New(),
-		&systray.Service{Agent: ag},
+		logs,
+		&systray.Service{Agent: ag, ReloadCh: wsCh},
 		&rpc.Service{Agent: ag},
 	}
 	if devMode {
@@ -58,7 +64,7 @@ func runAgent(cmd *cobra.Command, args []string) {
 		}...)
 	}
 	dm := daemon.New(services...)
-	fatal(dm.Run(context.Background()))
+	fatal(dm.Run(ctx))
 }
 
 func openAgent() *agent.Agent {

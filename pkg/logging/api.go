@@ -1,4 +1,4 @@
-package log
+package logging
 
 // Logger is a full debug, info, and error logger.
 type Logger interface {

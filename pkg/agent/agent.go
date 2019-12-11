@@ -1,14 +1,17 @@
 package agent
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"os/user"
 	"path/filepath"
 	"sync"
+
+	"github.com/fsnotify/fsnotify"
+	"github.com/manifold/tractor/pkg/logging"
 )
 
 // Agent manages multiple workspaces in a directory (default: ~/.tractor).
@@ -18,6 +21,8 @@ type Agent struct {
 	WorkspacesPath       string // ~/.tractor/workspaces
 	WorkspaceSocketsPath string // ~/.tractor/sockets
 	GoBin                string
+
+	Logger logging.Logger
 
 	workspaces map[string]*Workspace
 	mu         sync.RWMutex
@@ -145,10 +150,41 @@ func (a *Agent) Workspaces() ([]*Workspace, error) {
 
 // Shutdown shuts all workspaces down and cleans up socket files.
 func (a *Agent) Shutdown() {
-	log.Println("[server] shutting down")
+	a.Logger.Info("[server] shutting down")
 	os.RemoveAll(a.SocketPath)
 	for _, ws := range a.workspaces {
 		ws.Stop()
+	}
+}
+
+func (a *Agent) Watch(ctx context.Context, ch chan struct{}) {
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		a.Logger.Info("unable to create watcher:", err)
+		return
+	}
+	watcher.Add(a.WorkspacesPath)
+	for {
+		select {
+		case <-ctx.Done():
+			watcher.Close()
+			return
+		case event, ok := <-watcher.Events:
+			if !ok {
+				return
+			}
+			if event.Op&fsnotify.Chmod == fsnotify.Chmod {
+				continue
+			}
+
+			ch <- struct{}{}
+
+		case err, ok := <-watcher.Errors:
+			if !ok {
+				return
+			}
+			a.Logger.Debug("watcher error:", err)
+		}
 	}
 }
 
@@ -160,7 +196,7 @@ func (a *Agent) isWorkspaceDir(fi os.FileInfo) bool {
 	path := filepath.Join(a.WorkspacesPath, fi.Name())
 	resolved, err := filepath.EvalSymlinks(path)
 	if err != nil {
-		log.Println(err)
+		a.Logger.Error(err)
 		return false
 	}
 
@@ -170,7 +206,7 @@ func (a *Agent) isWorkspaceDir(fi os.FileInfo) bool {
 
 	rfi, err := os.Lstat(resolved)
 	if err != nil {
-		log.Println(err)
+		a.Logger.Error(err)
 		return false
 	}
 

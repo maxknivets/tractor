@@ -7,8 +7,8 @@ import (
 	"sync"
 
 	"github.com/manifold/tractor/pkg/console"
-	"github.com/manifold/tractor/pkg/log"
-	"github.com/manifold/tractor/pkg/log/std"
+	"github.com/manifold/tractor/pkg/logging"
+	"github.com/manifold/tractor/pkg/logging/std"
 )
 
 // Output lets you redirect the output the console is set up with.
@@ -16,7 +16,7 @@ var Output = os.Stdout
 
 // Service provides a logging service and console output
 type Service struct {
-	log.Logger
+	logging.Logger
 
 	logreader io.Reader
 	logwriter io.WriteCloser
