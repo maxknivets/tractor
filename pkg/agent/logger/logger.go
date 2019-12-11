@@ -56,3 +56,9 @@ func (s *Service) NewReader(name string, reader io.Reader, isError bool) {
 	go s.console.LineReader(&s.wg, name, s.idx, reader, isError)
 	s.idx++
 }
+
+func (s *Service) NewPipe(name string) io.WriteCloser {
+	pr, pw := io.Pipe()
+	s.NewReader(name, pr, false)
+	return pw
+}

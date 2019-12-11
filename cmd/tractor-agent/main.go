@@ -10,6 +10,7 @@ import (
 	"github.com/manifold/tractor/pkg/agent/rpc"
 	"github.com/manifold/tractor/pkg/agent/selfdev"
 	"github.com/manifold/tractor/pkg/agent/systray"
+	"github.com/manifold/tractor/pkg/agent/systray/subprocess"
 	"github.com/manifold/tractor/pkg/daemon"
 	"github.com/spf13/cobra"
 )
@@ -36,17 +37,19 @@ func main() {
 }
 
 func runAgent(cmd *cobra.Command, args []string) {
+	if os.Getenv("SYSTRAY_SUBPROCESS") != "" {
+		subprocess.Run()
+		return
+	}
+
 	ag := openAgent()
 	if agentSockExists(ag) && devMode {
+		log.Println("Agent will not run in dev mode if agent socket exists.")
 		return
 	}
 	services := []daemon.Service{
 		logger.New(),
-
-		// this must be first so it terminates last. limitation of library used.
-		// https://github.com/getlantern/systray/issues/47
 		&systray.Service{Agent: ag},
-
 		&rpc.Service{Agent: ag},
 	}
 	if devMode {

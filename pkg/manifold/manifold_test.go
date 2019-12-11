@@ -148,27 +148,27 @@ func TestFullPath(t *testing.T) {
 	}
 }
 
-func TestExpressions(t *testing.T) {
-	r := newTree()
-	n := r.Child("Node1")
-	v := newDemoComponent()
-	n.AppendComponent(v)
-	expect := "/Node1/DemoComponent/TestString"
-	n.SetExpression("DemoComponent/StringValue", expect)
-	if got := n.Expression("DemoComponent/StringValue"); got != expect {
-		t.Fatalf("got: %#v, want: %#v", got, expect)
-	}
-	got := n.Value("DemoComponent/StringValue")
-	if got != "test" {
-		t.Fatalf("got: %s, wanted: test", got)
-	}
-	v.TestString = "test2"
-	n.Sync()
-	got = n.Value("DemoComponent/StringValue")
-	if got != "test2" {
-		t.Fatalf("got: %s, wanted: test2", got)
-	}
-}
+// func TestExpressions(t *testing.T) {
+// 	r := newTree()
+// 	n := r.Child("Node1")
+// 	v := newDemoComponent()
+// 	n.AppendComponent(v)
+// 	expect := "/Node1/DemoComponent/TestString"
+// 	n.SetExpression("DemoComponent/StringValue", expect)
+// 	if got := n.Expression("DemoComponent/StringValue"); got != expect {
+// 		t.Fatalf("got: %#v, want: %#v", got, expect)
+// 	}
+// 	got := n.Value("DemoComponent/StringValue")
+// 	if got != "test" {
+// 		t.Fatalf("got: %s, wanted: test", got)
+// 	}
+// 	v.TestString = "test2"
+// 	n.Sync()
+// 	got = n.Value("DemoComponent/StringValue")
+// 	if got != "test2" {
+// 		t.Fatalf("got: %s, wanted: test2", got)
+// 	}
+// }
 
 func TestObserver(t *testing.T) {
 	n := NewNode("Node1")
