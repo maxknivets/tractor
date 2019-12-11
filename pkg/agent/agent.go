@@ -12,6 +12,7 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/manifold/tractor/pkg/logging"
+	"github.com/manifold/tractor/pkg/logging/null"
 )
 
 // Agent manages multiple workspaces in a directory (default: ~/.tractor).
@@ -53,6 +54,7 @@ func Open(path string) (*Agent, error) {
 	a.SocketPath = filepath.Join(a.Path, "agent.sock")
 	a.WorkspacesPath = filepath.Join(a.Path, "workspaces")
 	a.WorkspaceSocketsPath = filepath.Join(a.Path, "sockets")
+	a.Logger = &null.Logger{}
 
 	os.MkdirAll(a.WorkspacesPath, 0700)
 	os.MkdirAll(a.WorkspaceSocketsPath, 0700)
