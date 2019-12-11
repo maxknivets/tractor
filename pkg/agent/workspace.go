@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,6 +11,7 @@ import (
 	"syscall"
 
 	"github.com/manifold/tractor/pkg/data/icons"
+	"github.com/manifold/tractor/pkg/logging"
 )
 
 type WorkspaceStatus int
@@ -51,6 +51,7 @@ type Workspace struct {
 	SocketPath  string // absolute path to socket file (~/.tractor/sockets/{name}.sock)
 	Status      WorkspaceStatus
 
+	log             logging.Logger
 	statusCallbacks []func(*Workspace)
 	goBin           string
 	consoleBuf      *Buffer
@@ -79,12 +80,13 @@ func NewWorkspace(a *Agent, name string) *Workspace {
 		Status:          StatusPartially,
 		goBin:           a.GoBin,
 		statusCallbacks: make([]func(*Workspace), 0),
+		log:             a.Logger,
 	}
 }
 
 func (w *Workspace) Connect() (io.ReadCloser, error) {
 	w.mu.Lock()
-	log.Println("[workspace]", w.Name, "Connect()")
+	w.log.Info("[workspace]", w.Name, "Connect()")
 	if w.consoleBuf != nil {
 		w.setStatus(StatusAvailable)
 		out := w.consoleBuf.Pipe()
@@ -103,7 +105,7 @@ func (w *Workspace) Connect() (io.ReadCloser, error) {
 // not exist, using the path basename as the symlink name
 func (w *Workspace) Start() error {
 	w.mu.Lock()
-	log.Println("[workspace]", w.Name, "Start()")
+	w.log.Info("[workspace]", w.Name, "Start()")
 
 	w.resetPid(StatusPartially)
 
@@ -150,7 +152,7 @@ func (w *Workspace) start() error {
 // Stop stops the workspace daemon, deleting the unix socket file.
 func (w *Workspace) Stop() {
 	w.mu.Lock()
-	log.Println("[workspace]", w.Name, "Stop()")
+	w.log.Info("[workspace]", w.Name, "Stop()")
 	w.resetPid(StatusPartially)
 	w.mu.Unlock()
 }
@@ -205,7 +207,7 @@ func (w *Workspace) setStatus(s WorkspaceStatus) {
 		return
 	}
 
-	log.Println("[workspace]", w.Name, "state:", w.Status, "=>", s)
+	w.log.Info("[workspace]", w.Name, "state:", w.Status, "=>", s)
 	w.Status = s
 	for _, cb := range w.statusCallbacks {
 		cb(w)

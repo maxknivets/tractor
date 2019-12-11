@@ -1,10 +1,10 @@
 package null
 
-import "github.com/manifold/tractor/pkg/log"
+import "github.com/manifold/tractor/pkg/logging"
 
 type Logger struct{}
 
-func (l *Logger) With(args ...interface{}) log.Logger {
+func (l *Logger) With(args ...interface{}) logging.Logger {
 	return l
 }
 func (l *Logger) Debug(args ...interface{})                       {}

@@ -3,7 +3,6 @@ package rpc
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 	"time"
@@ -11,12 +10,14 @@ import (
 	"github.com/manifold/qtalk/libmux/mux"
 	"github.com/manifold/qtalk/qrpc"
 	"github.com/manifold/tractor/pkg/agent"
+	"github.com/manifold/tractor/pkg/logging"
 )
 
 // Service provides a QRPC server to connect, restart, and stop running
 // workspaces.
 type Service struct {
 	Agent *agent.Agent
+	Log   logging.Logger
 	api   qrpc.API
 	l     mux.Listener
 }
@@ -38,7 +39,7 @@ func (s *Service) Serve(ctx context.Context) {
 
 	s.periodicStatus()
 
-	log.Printf("[server] unix://%s", s.Agent.SocketPath)
+	s.Log.Infof("[server] unix://%s", s.Agent.SocketPath)
 	if err := server.Serve(s.l, s.api); err != nil {
 		fmt.Println(err)
 	}
@@ -58,10 +59,10 @@ func (s *Service) periodicStatus() {
 			time.Sleep(time.Second * 3)
 			msg, err := wsStatus(s.Agent)
 			if err != nil {
-				log.Println("[workspaces]", err)
+				s.Log.Info("[workspaces]", err)
 			}
 			if lastMsg != msg && len(msg) > 0 {
-				log.Println("[workspaces]", msg)
+				s.Log.Info("[workspaces]", msg)
 			}
 			lastMsg = msg
 		}
@@ -88,7 +89,6 @@ func findWorkspace(a *agent.Agent, call *qrpc.Call) (*agent.Workspace, error) {
 	if err := call.Decode(&workspacePath); err != nil {
 		return nil, err
 	}
-	log.Println("[qrpc]", call.Destination, workspacePath)
 
 	if ws := a.Workspace(workspacePath); ws != nil {
 		return ws, nil

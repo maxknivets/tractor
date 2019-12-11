@@ -4,13 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
 	"sync"
 	"sync/atomic"
 	"syscall"
 
+	"github.com/manifold/tractor/pkg/logging"
 	"github.com/manifold/tractor/pkg/registry"
 )
 
@@ -35,10 +35,10 @@ type Daemon struct {
 	Initializers []Initializer
 	Services     []Service
 	Terminators  []Terminator
-	Logger       log.Logger
+	Logger       logging.Logger
 	Context      context.Context
 	OnFinished   func()
-	state        int32
+	running      int32
 	cancel       context.CancelFunc
 	termErrs     chan []error
 }
@@ -64,7 +64,7 @@ func Run(services ...Service) error {
 
 // Run executes the daemon lifecycle
 func (d *Daemon) Run(ctx context.Context) error {
-	if !atomic.CompareAndSwapInt32(&d.state, 0, 1) {
+	if !atomic.CompareAndSwapInt32(&d.running, 0, 1) {
 		return errors.New("already running")
 	}
 
@@ -128,10 +128,12 @@ func (d *Daemon) Run(ctx context.Context) error {
 // Terminate cancels the daemon context and calls Terminators in reverse order
 func (d *Daemon) Terminate() {
 	if d == nil {
+		// find these cases and prevent them!
+		panic("daemon reference used to Terminate but daemon pointer is nil")
 		return
 	}
 
-	if !atomic.CompareAndSwapInt32(&d.state, 1, 0) {
+	if !atomic.CompareAndSwapInt32(&d.running, 1, 0) {
 		return
 	}
 
