@@ -3,6 +3,7 @@ package daemon
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/manifold/tractor/pkg/registry"
 	"github.com/stretchr/testify/assert"
@@ -76,8 +77,7 @@ func TestDaemon(t *testing.T) {
 	assert.Len(t, d.Terminators, 2)
 	assert.Len(t, d.Services, 3)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Millisecond)
 	d.Run(ctx)
 
 	s1.AssertExpectations(t)

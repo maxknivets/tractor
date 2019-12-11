@@ -37,6 +37,7 @@ type Daemon struct {
 	Terminators  []Terminator
 	Logger       log.Logger
 	Context      context.Context
+	OnFinished   func()
 	state        int32
 	cancel       context.CancelFunc
 	termErrs     chan []error
@@ -112,6 +113,10 @@ func (d *Daemon) Run(ctx context.Context) error {
 		errs = <-d.termErrs
 	case errs = <-d.termErrs:
 		fmt.Println("warning: unfinished services")
+	}
+
+	if d.OnFinished != nil {
+		d.OnFinished()
 	}
 
 	if len(errs) > 0 {
