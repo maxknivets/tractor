@@ -11,7 +11,7 @@ import (
 	"syscall"
 
 	"github.com/manifold/tractor/pkg/data/icons"
-	"github.com/manifold/tractor/pkg/logging"
+	"github.com/manifold/tractor/pkg/misc/logging"
 )
 
 type WorkspaceStatus int

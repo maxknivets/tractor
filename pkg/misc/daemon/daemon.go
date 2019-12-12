@@ -10,8 +10,8 @@ import (
 	"sync/atomic"
 	"syscall"
 
-	"github.com/manifold/tractor/pkg/logging"
-	"github.com/manifold/tractor/pkg/registry"
+	"github.com/manifold/tractor/pkg/misc/logging"
+	"github.com/manifold/tractor/pkg/misc/registry"
 )
 
 // Initializer is initialized before services are started. Returning

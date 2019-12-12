@@ -6,7 +6,7 @@ import (
 	"log"
 	"strings"
 
-	api "github.com/manifold/tractor/pkg/logging"
+	api "github.com/manifold/tractor/pkg/misc/logging"
 )
 
 type Logger struct {

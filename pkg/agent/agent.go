@@ -11,8 +11,8 @@ import (
 	"sync"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/manifold/tractor/pkg/logging"
-	"github.com/manifold/tractor/pkg/logging/null"
+	"github.com/manifold/tractor/pkg/misc/logging"
+	"github.com/manifold/tractor/pkg/misc/logging/null"
 )
 
 // Agent manages multiple workspaces in a directory (default: ~/.tractor).

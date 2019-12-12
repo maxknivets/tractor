@@ -7,12 +7,12 @@ import (
 	"os"
 
 	"github.com/manifold/tractor/pkg/agent"
-	"github.com/manifold/tractor/pkg/agent/logger"
+	"github.com/manifold/tractor/pkg/agent/console"
 	"github.com/manifold/tractor/pkg/agent/rpc"
 	"github.com/manifold/tractor/pkg/agent/selfdev"
 	"github.com/manifold/tractor/pkg/agent/systray"
 	"github.com/manifold/tractor/pkg/agent/systray/subprocess"
-	"github.com/manifold/tractor/pkg/daemon"
+	"github.com/manifold/tractor/pkg/misc/daemon"
 	"github.com/spf13/cobra"
 )
 
@@ -44,7 +44,7 @@ func runAgent(cmd *cobra.Command, args []string) {
 	}
 	ctx := context.Background()
 
-	logs := logger.New()
+	logs := console.New()
 	ag := openAgent()
 	ag.Logger = logs
 	if agentSockExists(ag) && devMode {

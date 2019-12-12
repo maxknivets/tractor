@@ -10,7 +10,7 @@ import (
 	"github.com/manifold/qtalk/libmux/mux"
 	"github.com/manifold/qtalk/qrpc"
 	"github.com/manifold/tractor/pkg/agent"
-	"github.com/manifold/tractor/pkg/logging"
+	"github.com/manifold/tractor/pkg/misc/logging"
 )
 
 // Service provides a QRPC server to connect, restart, and stop running

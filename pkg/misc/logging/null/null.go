@@ -1,6 +1,6 @@
 package null
 
-import "github.com/manifold/tractor/pkg/logging"
+import "github.com/manifold/tractor/pkg/misc/logging"
 
 type Logger struct{}
 

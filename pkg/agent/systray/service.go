@@ -10,8 +10,8 @@ import (
 	"syscall"
 
 	"github.com/manifold/tractor/pkg/agent"
-	"github.com/manifold/tractor/pkg/daemon"
-	"github.com/manifold/tractor/pkg/logging"
+	"github.com/manifold/tractor/pkg/misc/daemon"
+	"github.com/manifold/tractor/pkg/misc/logging"
 	"github.com/skratchdot/open-golang/open"
 )
 

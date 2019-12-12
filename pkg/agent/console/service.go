@@ -1,4 +1,4 @@
-package logger
+package console
 
 import (
 	"context"
@@ -6,9 +6,8 @@ import (
 	"os"
 	"sync"
 
-	"github.com/manifold/tractor/pkg/console"
-	"github.com/manifold/tractor/pkg/logging"
-	"github.com/manifold/tractor/pkg/logging/std"
+	"github.com/manifold/tractor/pkg/misc/logging"
+	"github.com/manifold/tractor/pkg/misc/logging/std"
 )
 
 // Output lets you redirect the output the console is set up with.
@@ -20,7 +19,7 @@ type Service struct {
 
 	logreader io.Reader
 	logwriter io.WriteCloser
-	console   *console.Console
+	console   *LineWriter
 	mu        sync.Mutex
 	idx       int
 }
@@ -30,7 +29,7 @@ func New() *Service {
 	s := &Service{}
 	s.logreader, s.logwriter = io.Pipe()
 	s.Logger = std.NewLogger("", s.logwriter)
-	s.console = &console.Console{
+	s.console = &LineWriter{
 		Output: Output,
 	}
 	go s.console.LineReader("agent", -1, s.logreader, false)

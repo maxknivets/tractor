@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/manifold/tractor/pkg/registry"
+	"github.com/manifold/tractor/pkg/misc/registry"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"

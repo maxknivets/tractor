@@ -13,6 +13,7 @@ require (
 	github.com/gliderlabs/com v0.1.1-0.20191023181249-02615ad445ac
 	github.com/gliderlabs/stdcom v0.0.0-20171109193247-64a0d4e5fd86
 	github.com/goji/httpauth v0.0.0-20160601135302-2da839ab0f4d
+	github.com/golangplus/testing v0.0.0-20180327235837-af21d9c3145e // indirect
 	github.com/hashicorp/yamux v0.0.0-20190923154419-df201c70410d // indirect
 	github.com/inconshreveable/muxado v0.0.0-20160802230925-fc182d90f26e // indirect
 	github.com/lucas-clemente/quic-go v0.13.1 // indirect
