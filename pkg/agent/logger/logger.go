@@ -21,7 +21,7 @@ type Service struct {
 	logreader io.Reader
 	logwriter io.WriteCloser
 	console   *console.Console
-	wg        sync.WaitGroup
+	mu        sync.Mutex
 	idx       int
 }
 
@@ -33,15 +33,13 @@ func New() *Service {
 	s.console = &console.Console{
 		Output: Output,
 	}
-	s.wg.Add(1)
-	go s.console.LineReader(&s.wg, "agent", -1, s.logreader, false)
+	go s.console.LineReader("agent", -1, s.logreader, false)
 	return s
 }
 
 // Serve ...
 func (s *Service) Serve(ctx context.Context) {
-	// TODO: cancel line readers with context
-	s.wg.Wait()
+	s.console.Wait()
 }
 
 // TerminateDaemon ...
@@ -51,10 +49,13 @@ func (s *Service) TerminateDaemon() error {
 
 // NewReader ...
 func (s *Service) NewReader(name string, reader io.Reader, isError bool) {
-	s.wg.Add(1)
-	// TODO: close these on terminate
-	go s.console.LineReader(&s.wg, name, s.idx, reader, isError)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	current := s.idx
 	s.idx++
+
+	go s.console.LineReader(name, current, reader, isError)
 }
 
 func (s *Service) NewPipe(name string) io.WriteCloser {
