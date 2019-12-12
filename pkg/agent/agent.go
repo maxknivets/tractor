@@ -152,7 +152,7 @@ func (a *Agent) Workspaces() ([]*Workspace, error) {
 
 // Shutdown shuts all workspaces down and cleans up socket files.
 func (a *Agent) Shutdown() {
-	a.Logger.Info("[server] shutting down")
+	info(a.Logger, "[server] shutting down")
 	os.RemoveAll(a.SocketPath)
 	for _, ws := range a.workspaces {
 		ws.Stop()
@@ -162,7 +162,7 @@ func (a *Agent) Shutdown() {
 func (a *Agent) Watch(ctx context.Context, ch chan struct{}) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
-		a.Logger.Info("unable to create watcher:", err)
+		info(a.Logger, "unable to create watcher:", err)
 		return
 	}
 	watcher.Add(a.WorkspacesPath)
@@ -185,7 +185,7 @@ func (a *Agent) Watch(ctx context.Context, ch chan struct{}) {
 			if !ok {
 				return
 			}
-			a.Logger.Debug("watcher error:", err)
+			logErr(a.Logger, "watcher error:", err)
 		}
 	}
 }
@@ -198,7 +198,7 @@ func (a *Agent) isWorkspaceDir(fi os.FileInfo) bool {
 	path := filepath.Join(a.WorkspacesPath, fi.Name())
 	resolved, err := filepath.EvalSymlinks(path)
 	if err != nil {
-		a.Logger.Error(err)
+		logErr(a.Logger, err)
 		return false
 	}
 
@@ -208,7 +208,7 @@ func (a *Agent) isWorkspaceDir(fi os.FileInfo) bool {
 
 	rfi, err := os.Lstat(resolved)
 	if err != nil {
-		a.Logger.Error(err)
+		logErr(a.Logger, err)
 		return false
 	}
 
@@ -222,4 +222,16 @@ func defaultPath() (string, error) {
 	}
 
 	return filepath.Join(usr.HomeDir, ".tractor"), nil
+}
+
+func info(l logging.Logger, args ...interface{}) {
+	if l != nil {
+		l.Info(args...)
+	}
+}
+
+func logErr(l logging.Logger, args ...interface{}) {
+	if l != nil {
+		l.Error(args...)
+	}
 }

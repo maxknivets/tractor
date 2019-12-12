@@ -86,7 +86,7 @@ func NewWorkspace(a *Agent, name string) *Workspace {
 
 func (w *Workspace) Connect() (io.ReadCloser, error) {
 	w.mu.Lock()
-	w.log.Info("[workspace]", w.Name, "Connect()")
+	info(w.log, "[workspace]", w.Name, "Connect()")
 	if w.consoleBuf != nil {
 		w.setStatus(StatusAvailable)
 		out := w.consoleBuf.Pipe()
@@ -105,7 +105,7 @@ func (w *Workspace) Connect() (io.ReadCloser, error) {
 // not exist, using the path basename as the symlink name
 func (w *Workspace) Start() error {
 	w.mu.Lock()
-	w.log.Info("[workspace]", w.Name, "Start()")
+	info(w.log, "[workspace]", w.Name, "Start()")
 
 	w.resetPid(StatusPartially)
 
@@ -152,7 +152,7 @@ func (w *Workspace) start() error {
 // Stop stops the workspace daemon, deleting the unix socket file.
 func (w *Workspace) Stop() {
 	w.mu.Lock()
-	w.log.Info("[workspace]", w.Name, "Stop()")
+	info(w.log, "[workspace]", w.Name, "Stop()")
 	w.resetPid(StatusPartially)
 	w.mu.Unlock()
 }
@@ -207,7 +207,7 @@ func (w *Workspace) setStatus(s WorkspaceStatus) {
 		return
 	}
 
-	w.log.Info("[workspace]", w.Name, "state:", w.Status, "=>", s)
+	info(w.log, "[workspace]", w.Name, "state:", w.Status, "=>", s)
 	w.Status = s
 	for _, cb := range w.statusCallbacks {
 		cb(w)

@@ -1,8 +1,10 @@
 package selfdev
 
 import (
+	"bytes"
 	"context"
-	"fmt"
+	"crypto/md5"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -22,13 +24,16 @@ type Service struct {
 	Console *logger.Service
 
 	watcher *fsnotify.Watcher
+	output  io.WriteCloser
 }
 
 func (s *Service) InitializeDaemon() (err error) {
+	s.output = s.Console.NewPipe("dev")
 	s.watcher, err = fsnotify.NewWatcher()
 	if err != nil {
 		return err
 	}
+
 	// for typescript files
 	for _, path := range collectDirs("./extension", []string{"node_modules", "out"}) {
 		err = s.watcher.Add(path)
@@ -43,6 +48,7 @@ func (s *Service) InitializeDaemon() (err error) {
 			return err
 		}
 	}
+
 	return err
 }
 
@@ -67,8 +73,8 @@ func (s *Service) Serve(ctx context.Context) {
 				s.Logger.Debug("ts file changed, compiling...")
 				go func() {
 					cmd := exec.Command("tsc", "-p", "./extension")
-					cmd.Stdout = os.Stdout
-					cmd.Stderr = os.Stderr
+					cmd.Stdout = s.output
+					cmd.Stderr = s.output
 					cmd.Run()
 					s.Logger.Debug("finished")
 				}()
@@ -79,38 +85,32 @@ func (s *Service) Serve(ctx context.Context) {
 				errs := make(chan error)
 				go func() {
 					cmd := exec.Command("go", "build", "-o", "./dev/bin/tractor.tmp", "./cmd/tractor")
-					cmd.Stdout = os.Stdout
-					cmd.Stderr = os.Stderr
+					cmd.Stdout = s.output
+					cmd.Stderr = s.output
 					err := cmd.Run()
 					errs <- err
 					if exitStatus(err) > 0 {
 						s.Logger.Debug("ERROR")
-					} else {
-						s.Logger.Debug("finished")
 					}
 				}()
 				go func() {
 					cmd := exec.Command("go", "build", "-o", "./dev/bin/tractor-agent.tmp", "./cmd/tractor-agent")
-					cmd.Stdout = os.Stdout
-					cmd.Stderr = os.Stderr
+					cmd.Stdout = s.output
+					cmd.Stderr = s.output
 					err := cmd.Run()
 					errs <- err
 					if exitStatus(err) > 0 {
 						s.Logger.Debug("ERROR")
-					} else {
-						s.Logger.Debug("finished")
 					}
 				}()
 				go func() {
 					cmd := exec.Command("go", "test", "./pkg/...")
-					cmd.Stdout = os.Stdout
-					cmd.Stderr = os.Stderr
+					cmd.Stdout = s.output
+					cmd.Stderr = s.output
 					err := cmd.Run()
 					errs <- err
 					if exitStatus(err) > 0 {
 						s.Logger.Debug("ERROR")
-					} else {
-						s.Logger.Debug("finished")
 					}
 				}()
 				go func() {
@@ -121,12 +121,23 @@ func (s *Service) Serve(ctx context.Context) {
 							return
 						}
 					}
-					os.Rename("./dev/bin/tractor-agent.tmp", "./dev/bin/tractor-agent")
 					os.Rename("./dev/bin/tractor.tmp", "./dev/bin/tractor")
-					s.Daemon.OnFinished = func() {
-						fmt.Println("OK EXEC ME")
+
+					// NOTE: this is useless since go doesn't make deterministic builds.
+					// 		 just a reminder maybe someday we can restart more intelligently.
+					if !checksumMatch("./dev/bin/tractor-agent.tmp", "./dev/bin/tractor-agent") {
+						os.Rename("./dev/bin/tractor-agent.tmp", "./dev/bin/tractor-agent")
+						s.Daemon.OnFinished = func() {
+							err := syscall.Exec(os.Args[0], os.Args, os.Environ())
+							if err != nil {
+								panic(err)
+							}
+						}
+						s.Daemon.Terminate()
+					} else {
+						os.Remove("./dev/bin/tractor-agent.tmp")
 					}
-					s.Daemon.Terminate()
+
 				}()
 			}
 
@@ -174,4 +185,22 @@ func exitStatus(err error) int {
 		}
 	}
 	return 0
+}
+
+func checksumMatch(bin1, bin2 string) bool {
+	checksum := func(path string, ch chan []byte) {
+		b, err := os.Open(path)
+		if err != nil {
+			return
+		}
+		defer b.Close()
+		h := md5.New()
+		io.Copy(h, b)
+		ch <- h.Sum(nil)
+	}
+	chk1 := make(chan []byte)
+	chk2 := make(chan []byte)
+	go checksum(bin1, chk1)
+	go checksum(bin2, chk2)
+	return bytes.Equal(<-chk1, <-chk2)
 }
