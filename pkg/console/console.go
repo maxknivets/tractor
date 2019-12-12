@@ -14,7 +14,8 @@ type Console struct {
 	Output  io.Writer
 	Padding int
 
-	sync.Mutex
+	wg sync.WaitGroup
+	mu sync.Mutex
 }
 
 var colors = []ct.Color{
@@ -26,8 +27,17 @@ var colors = []ct.Color{
 	ct.Blue,
 }
 
-func (of *Console) LineReader(wg *sync.WaitGroup, name string, index int, r io.Reader, isError bool) {
-	defer wg.Done()
+func (of *Console) Wait() {
+	of.wg.Wait()
+}
+
+func (of *Console) LineReader(name string, index int, r io.Reader, isError bool) {
+	of.wg.Add(1)
+	defer of.wg.Done()
+
+	if rc, ok := r.(io.ReadCloser); ok {
+		defer rc.Close()
+	}
 
 	var color ct.Color
 	if index == -1 {
@@ -66,8 +76,8 @@ func (of *Console) LineReader(wg *sync.WaitGroup, name string, index int, r io.R
 
 // Write out a single coloured line
 func (of *Console) WriteLine(left, right string, leftC, rightC ct.Color, isError bool) {
-	of.Lock()
-	defer of.Unlock()
+	of.mu.Lock()
+	defer of.mu.Unlock()
 
 	ct.ChangeColor(leftC, true, ct.None, false)
 	formatter := fmt.Sprintf("%%-%ds | ", of.Padding)
