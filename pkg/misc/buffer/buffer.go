@@ -1,4 +1,4 @@
-package agent
+package buffer
 
 import (
 	"bytes"
@@ -29,6 +29,12 @@ func NewBuffer(size int64) (*Buffer, error) {
 		buf:   cbuf,
 		pipes: make(map[*pipeReader]*io.PipeWriter),
 	}, nil
+}
+
+func (b *Buffer) Reset() {
+	b.muBuf.Lock()
+	b.buf.Reset()
+	b.muBuf.Unlock()
 }
 
 // Status returns how many pipes are currently attached, and how much data has

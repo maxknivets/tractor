@@ -1,16 +1,16 @@
-package agent_test
+package buffer_test
 
 import (
 	"bytes"
 	"io"
 	"testing"
 
-	"github.com/manifold/tractor/pkg/agent"
+	"github.com/manifold/tractor/pkg/misc/buffer"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestBuffer(t *testing.T) {
-	buf, err := agent.NewBuffer(3)
+	buf, err := buffer.NewBuffer(3)
 	assert.Nil(t, err)
 
 	numPipes, sizeSeen := buf.Status()
