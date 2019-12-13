@@ -1,7 +1,6 @@
 package agent
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"os"
@@ -11,22 +10,24 @@ import (
 	"syscall"
 
 	"github.com/manifold/tractor/pkg/data/icons"
+	"github.com/manifold/tractor/pkg/misc/buffer"
 	"github.com/manifold/tractor/pkg/misc/logging"
+	"github.com/manifold/tractor/pkg/misc/subcmd"
 )
 
-type WorkspaceStatus int
+type WorkspaceStatus string
 
 const (
-	StatusAvailable = iota
-	StatusPartially
-	StatusUnavailable
+	StatusAvailable   WorkspaceStatus = "Available"
+	StatusPartially   WorkspaceStatus = "Partially"
+	StatusUnavailable WorkspaceStatus = "Unavailable"
 )
 
 func (s WorkspaceStatus) Icon() []byte {
-	switch int(s) {
-	case 0:
+	switch s {
+	case StatusAvailable:
 		return icons.Available
-	case 1:
+	case StatusPartially:
 		return icons.Partially
 	default:
 		return icons.Unavailable
@@ -34,14 +35,7 @@ func (s WorkspaceStatus) Icon() []byte {
 }
 
 func (s WorkspaceStatus) String() string {
-	switch int(s) {
-	case 0:
-		return "Available"
-	case 1:
-		return "Partially"
-	default:
-		return "Unavailable"
-	}
+	return string(s)
 }
 
 type Workspace struct {
@@ -54,25 +48,20 @@ type Workspace struct {
 	log             logging.Logger
 	statusCallbacks []func(*Workspace)
 	goBin           string
-	consoleBuf      *Buffer
-	daemonCmd       *exec.Cmd
+	consoleBuf      *buffer.Buffer
+	daemon          *subcmd.Subcmd
 
-	cancel context.CancelFunc
-	mu     sync.Mutex
+	starting sync.Mutex
+	mu       sync.Mutex
 }
 
-func NewWorkspace(a *Agent, name string) *Workspace {
-	// JL: this may work differently when symlinks are automatically created
+func InitWorkspace(a *Agent, name string) (*Workspace, error) {
 	symlinkPath := filepath.Join(a.WorkspacesPath, name)
 	targetPath, err := os.Readlink(symlinkPath)
 	if err != nil {
-		// JL: 	this is just until the real NewWorkspace API is determined,
-		// 		depending on where the symlinking is done. if here, I imagine
-		//		NewWorkspace would return (*Workspace, error), but maybe not if
-		//		linking happens elsewhere
-		panic(err)
+		return nil, err
 	}
-	return &Workspace{
+	ws := &Workspace{
 		Name:            name,
 		SymlinkPath:     symlinkPath,
 		TargetPath:      targetPath,
@@ -82,79 +71,83 @@ func NewWorkspace(a *Agent, name string) *Workspace {
 		statusCallbacks: make([]func(*Workspace), 0),
 		log:             a.Logger,
 	}
+	ws.consoleBuf, err = buffer.NewBuffer(1024 * 1024)
+	if err != nil {
+		return nil, err
+	}
+	if err = ws.startDaemon(); err != nil {
+		return nil, err
+	}
+	return ws, nil
+}
+
+func (w *Workspace) startDaemon() error {
+	w.daemon = subcmd.New(w.goBin, "run", "workspace.go",
+		"-proto", "unix", "-addr", w.SocketPath)
+	w.daemon.Setup = func(cmd *exec.Cmd) error {
+		w.consoleBuf.Reset()
+
+		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+		cmd.Dir = w.TargetPath
+		cmd.Stdout = w.consoleBuf
+		cmd.Stderr = w.consoleBuf
+
+		return nil
+	}
+
+	if err := w.daemon.Start(); err != nil {
+		w.setStatus(StatusUnavailable)
+		return err
+	}
+
+	w.daemon.OnStatusChange(func(cmd *subcmd.Subcmd) {
+		switch cmd.Status {
+		case subcmd.StatusStarted:
+			w.setStatus(StatusAvailable)
+		case subcmd.StatusExited:
+			w.cleanup()
+			if cmd.Error() != nil {
+				info(w.log, cmd.Error())
+				w.setStatus(StatusUnavailable)
+			} else {
+				w.setStatus(StatusPartially)
+			}
+		case subcmd.StatusStopped:
+			w.cleanup()
+			w.setStatus(StatusUnavailable)
+		}
+	})
+
+	return nil
+}
+
+func (w *Workspace) cleanup() {
+	// workplace/init package should clean up its own socket
+	os.RemoveAll(w.SocketPath)
+	w.consoleBuf.Close()
 }
 
 func (w *Workspace) Connect() (io.ReadCloser, error) {
-	w.mu.Lock()
 	info(w.log, "[workspace]", w.Name, "Connect()")
-	if w.consoleBuf != nil {
-		w.setStatus(StatusAvailable)
-		out := w.consoleBuf.Pipe()
-		w.mu.Unlock()
-
-		return out, nil
+	var err error
+	if !subcmd.Running(w.daemon) {
+		err = w.daemon.Start()
 	}
-
-	err := w.start()
 	out := w.consoleBuf.Pipe()
-	w.mu.Unlock()
 	return out, err
 }
 
 // Start starts the workspace daemon. creates the symlink to the path if it does
 // not exist, using the path basename as the symlink name
 func (w *Workspace) Start() error {
-	w.mu.Lock()
 	info(w.log, "[workspace]", w.Name, "Start()")
-
-	w.resetPid(StatusPartially)
-
-	err := w.start()
-	w.mu.Unlock()
-	return err
-}
-
-// must run this when the w.mu mutex is locked
-func (w *Workspace) start() error {
-	buf, err := NewBuffer(1024 * 1024)
-	if err != nil {
-		return err
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	w.daemonCmd = exec.CommandContext(ctx, w.goBin, "run", "workspace.go",
-		"-proto", "unix", "-addr", w.SocketPath)
-	w.daemonCmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	w.daemonCmd.Dir = w.TargetPath
-	w.daemonCmd.Stdout = buf
-	w.daemonCmd.Stderr = buf
-	w.cancel = cancel
-
-	if err := w.daemonCmd.Start(); err != nil {
-		w.setStatus(StatusUnavailable)
-		return err
-	}
-
-	w.consoleBuf = buf
-	w.setStatus(StatusAvailable)
-
-	go func(c *exec.Cmd, ws *Workspace) {
-		if err := c.Wait(); err != nil {
-			ws.afterWait(c, StatusUnavailable)
-			return
-		}
-		ws.afterWait(c, StatusPartially)
-	}(w.daemonCmd, w)
-
-	return nil
+	return w.daemon.Restart()
 }
 
 // Stop stops the workspace daemon, deleting the unix socket file.
-func (w *Workspace) Stop() {
-	w.mu.Lock()
+func (w *Workspace) Stop() error {
 	info(w.log, "[workspace]", w.Name, "Stop()")
-	w.resetPid(StatusPartially)
-	w.mu.Unlock()
+	return w.daemon.Stop()
 }
 
 func (w *Workspace) OnStatusChange(cb func(*Workspace)) {
@@ -168,46 +161,15 @@ func (w *Workspace) BufferStatus() (int, int64) {
 	return w.consoleBuf.Status()
 }
 
-// weird method: resets cmd buffer/pid, sets the menu item status, and returns
-// the pid for Close()
-// must run when the w.mu mutex is locked.
-func (w *Workspace) resetPid(s WorkspaceStatus) {
-	if w.cancel != nil {
-		w.cancel()
-	}
-	w.cancel = nil
-
-	if w.daemonCmd != nil {
-		w.daemonCmd.Wait()
-	}
-	w.daemonCmd = nil
-
-	// workplace/init package should clean up its own socket
-	os.RemoveAll(w.SocketPath)
-
-	if w.consoleBuf != nil {
-		w.consoleBuf.Close()
-		w.consoleBuf = nil
-	}
-
-	w.setStatus(s)
-}
-
-func (w *Workspace) afterWait(c *exec.Cmd, s WorkspaceStatus) {
-	w.mu.Lock()
-	if c == w.daemonCmd {
-		w.resetPid(s)
-	}
-	w.mu.Unlock()
-}
-
 // always run when w.mu mutex is locked
 func (w *Workspace) setStatus(s WorkspaceStatus) {
 	if w.Status == s {
 		return
 	}
-
 	info(w.log, "[workspace]", w.Name, "state:", w.Status, "=>", s)
+
+	w.mu.Lock()
+	defer w.mu.Unlock()
 	w.Status = s
 	for _, cb := range w.statusCallbacks {
 		cb(w)

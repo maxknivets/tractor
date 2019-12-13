@@ -12,6 +12,7 @@ import (
 	"github.com/manifold/tractor/pkg/agent"
 	"github.com/manifold/tractor/pkg/misc/daemon"
 	"github.com/manifold/tractor/pkg/misc/logging"
+	"github.com/manifold/tractor/pkg/misc/subcmd"
 	"github.com/skratchdot/open-golang/open"
 )
 
@@ -21,19 +22,19 @@ type Service struct {
 	Daemon   *daemon.Daemon
 	ReloadCh chan struct{}
 
-	cmd     *exec.Cmd
-	stdin   io.WriteCloser
-	stdout  io.ReadCloser
-	inbox   chan Message
-	started chan struct{}
+	subcmd *subcmd.Subcmd
+	stdin  io.WriteCloser
+	stdout io.ReadCloser
+	inbox  chan Message
 }
 
 func (s *Service) InitializeDaemon() (err error) {
-	s.started = make(chan struct{})
 	if s.ReloadCh != nil {
 		go func() {
 			for range s.ReloadCh {
-				s.Reload()
+				if s.subcmd != nil {
+					s.subcmd.Restart()
+				}
 			}
 		}()
 	}
@@ -41,40 +42,30 @@ func (s *Service) InitializeDaemon() (err error) {
 }
 
 func (s *Service) start() (err error) {
-	s.inbox = make(chan Message)
+	s.subcmd = subcmd.New(os.Args[0], "--", "systray")
+	s.subcmd.Started = make(chan *exec.Cmd)
+	s.subcmd.Setup = func(cmd *exec.Cmd) error {
 
-	s.cmd = exec.Command(os.Args[0], "--", "systray")
-	s.cmd.Stderr = os.Stderr
-	s.cmd.Env = []string{"SYSTRAY_SUBPROCESS=1"}
-	s.cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	if s.stdin, err = s.cmd.StdinPipe(); err != nil {
-		return err
-	}
-	if s.stdout, err = s.cmd.StdoutPipe(); err != nil {
-		return err
-	}
-	err = s.cmd.Start()
-	if err != nil {
-		return err
-	}
-	go func() {
-		s.started <- struct{}{}
-		err := s.cmd.Wait()
-		if err != nil {
-			s.Logger.Debug("systay exit err:", err)
-			return
+		cmd.Stderr = os.Stderr
+		cmd.Env = []string{"SYSTRAY_SUBPROCESS=1"}
+		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+		if s.stdin, err = cmd.StdinPipe(); err != nil {
+			return err
 		}
-		if s.started != nil {
-			if err := s.start(); err != nil {
-				s.Logger.Debug("systray start err:", err)
-			}
+		if s.stdout, err = cmd.StdoutPipe(); err != nil {
+			return err
 		}
-	}()
-	return nil
+
+		s.inbox = make(chan Message)
+
+		return nil
+	}
+
+	return s.subcmd.Start()
 }
 
 func (s *Service) Serve(ctx context.Context) {
-	for range s.started {
+	for range s.subcmd.Started {
 		go s.receiveMessages()
 
 		workspaces, err := s.Agent.Workspaces()
@@ -139,22 +130,11 @@ func (s *Service) Serve(ctx context.Context) {
 }
 
 func (s *Service) Reload() {
-	if s.started == nil {
-		return
-	}
-	if s.cmd == nil {
-		return
-	}
-	syscall.Kill(-s.cmd.Process.Pid, syscall.SIGTERM)
+	s.subcmd.Restart()
 }
 
 func (s *Service) TerminateDaemon() error {
-	if s.started == nil {
-		return nil
-	}
-	close(s.started)
-	s.started = nil
-	return syscall.Kill(-s.cmd.Process.Pid, syscall.SIGTERM)
+	return s.subcmd.Stop()
 }
 
 func (s *Service) send(msg Message) {
@@ -178,19 +158,4 @@ func (s *Service) receiveMessages() {
 		s.Logger.Debug(err)
 	}
 	close(s.inbox)
-}
-
-func exitStatus(err error) int {
-	if exiterr, ok := err.(*exec.ExitError); ok {
-		// The program has exited with an exit code != 0
-
-		// This works on both Unix and Windows. Although package
-		// syscall is generally platform dependent, WaitStatus is
-		// defined for both Unix and Windows and in both cases has
-		// an ExitStatus() method with the same signature.
-		if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
-			return status.ExitStatus()
-		}
-	}
-	return 0
 }

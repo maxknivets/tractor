@@ -80,7 +80,10 @@ func (a *Agent) Workspace(path string) *Workspace {
 	}
 
 	// now look for a symlink in ~/.tractor/workspaces
-	wss, _ := a.Workspaces()
+	wss, err := a.Workspaces()
+	if err != nil {
+		panic(err)
+	}
 	for _, ws := range wss {
 		if ws.Name == path || ws.TargetPath == path {
 			return ws
@@ -141,7 +144,10 @@ func (a *Agent) Workspaces() ([]*Workspace, error) {
 		n := entry.Name()
 		ws := a.workspaces[n]
 		if ws == nil {
-			ws = NewWorkspace(a, n)
+			ws, err = InitWorkspace(a, n)
+			if err != nil {
+				return nil, err
+			}
 			a.workspaces[n] = ws
 		}
 		workspaces = append(workspaces, ws)
