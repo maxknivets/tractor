@@ -1,10 +1,8 @@
 package manifold
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"path"
 	"reflect"
 	"runtime"
@@ -12,7 +10,7 @@ import (
 
 	jsonpointer "github.com/dustin/go-jsonpointer"
 	"github.com/gliderlabs/com/objects"
-	"github.com/manifold/tractor/pkg/repl"
+
 	"github.com/mitchellh/hashstructure"
 	"github.com/mitchellh/mapstructure"
 	reflected "github.com/progrium/prototypes/go-reflected"
@@ -245,18 +243,18 @@ func (n *Node) SetExpression(path, value string) {
 }
 
 func (n *Node) evaluateExpression(localPath string) {
-	expr := n.Expression(localPath)
-	var ret interface{}
-	repl := repl.NewREPL(func(v interface{}) {
-		ret = v
-	})
-	in := bytes.NewBufferString(expr + "\n")
-	repl.Run(in, ioutil.Discard, map[string]interface{}{
-		"Node": n,
-	})
-	if ret != nil {
-		n.SetValue(localPath, ret)
-	}
+	// expr := n.Expression(localPath)
+	// var ret interface{}
+	// repl := repl.NewREPL(func(v interface{}) {
+	// 	ret = v
+	// })
+	// in := bytes.NewBufferString(expr + "\n")
+	// repl.Run(in, ioutil.Discard, map[string]interface{}{
+	// 	"Node": n,
+	// })
+	// if ret != nil {
+	// 	n.SetValue(localPath, ret)
+	// }
 
 	// referencedNode := n.FindNode(referencePath)
 	// refLocalPath := referencePath[len(referencedNode.FullPath()):]
