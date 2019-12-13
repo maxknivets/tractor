@@ -9,6 +9,7 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/manifold/tractor/pkg/agent/console"
 	"github.com/manifold/tractor/pkg/data/icons"
 	"github.com/manifold/tractor/pkg/misc/buffer"
 	"github.com/manifold/tractor/pkg/misc/logging"
@@ -46,6 +47,7 @@ type Workspace struct {
 	Status      WorkspaceStatus
 
 	log             logging.Logger
+	consolePipe     io.WriteCloser
 	statusCallbacks []func(*Workspace)
 	goBin           string
 	consoleBuf      *buffer.Buffer
@@ -61,6 +63,10 @@ func InitWorkspace(a *Agent, name string) (*Workspace, error) {
 	if err != nil {
 		return nil, err
 	}
+	var consolePipe io.WriteCloser
+	if svc, ok := a.Logger.(*console.Service); ok {
+		consolePipe = svc.NewPipe(name)
+	}
 	ws := &Workspace{
 		Name:            name,
 		SymlinkPath:     symlinkPath,
@@ -70,6 +76,7 @@ func InitWorkspace(a *Agent, name string) (*Workspace, error) {
 		goBin:           a.GoBin,
 		statusCallbacks: make([]func(*Workspace), 0),
 		log:             a.Logger,
+		consolePipe:     consolePipe,
 	}
 	ws.consoleBuf, err = buffer.NewBuffer(1024 * 1024)
 	if err != nil {
@@ -89,8 +96,13 @@ func (w *Workspace) startDaemon() error {
 
 		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 		cmd.Dir = w.TargetPath
-		cmd.Stdout = w.consoleBuf
-		cmd.Stderr = w.consoleBuf
+		if w.consolePipe != nil {
+			cmd.Stdout = io.MultiWriter(w.consoleBuf, w.consolePipe)
+			cmd.Stderr = io.MultiWriter(w.consoleBuf, w.consolePipe)
+		} else {
+			cmd.Stdout = w.consoleBuf
+			cmd.Stderr = w.consoleBuf
+		}
 
 		return nil
 	}
