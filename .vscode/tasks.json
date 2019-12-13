@@ -6,9 +6,16 @@
 		{
 			"label": "Run Dev",
 			"type": "shell",
-			"problemMatcher": "$tsc-watch",
-			"command": "${workspaceRoot}/dev/bin/tractor", 
-			"args": ["selfdev"],
+			"problemMatcher": {
+				"base": "$go",
+				"background": {
+				  "activeOnStart": true,
+				  "beginsPattern": "agent.sock$",
+				  "endsPattern": "[server]"
+				}
+			},
+			"command": "${workspaceRoot}/dev/bin/tractor-agent", 
+			"args": ["--dev"],
 			"isBackground": true,
 			"presentation": {
 				"reveal": "always",
