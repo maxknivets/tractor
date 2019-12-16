@@ -79,7 +79,7 @@ func wsStatus(a *agent.Agent) (string, error) {
 	for i, ws := range workspaces {
 		p, w := ws.BufferStatus()
 		pairs[i] = fmt.Sprintf("%s=%s (%d pipe(s), %d written)",
-			ws.Name, ws.Status, p, w)
+			ws.Name, ws.Status(), p, w)
 	}
 	return strings.Join(pairs, ", "), nil
 }

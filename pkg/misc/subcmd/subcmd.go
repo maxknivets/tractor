@@ -2,6 +2,7 @@ package subcmd
 
 import (
 	"errors"
+	"os"
 	"os/exec"
 	"sync"
 	"syscall"
@@ -34,7 +35,9 @@ func (s Status) String() string {
 }
 
 func Running(c *Subcmd) bool {
-	return c.Status == StatusStarting || c.Status == StatusStarted
+	c.statMu.Lock()
+	defer c.statMu.Unlock()
+	return c.status == StatusStarting || c.status == StatusStarted
 }
 
 type Subcmd struct {
@@ -42,11 +45,13 @@ type Subcmd struct {
 
 	Setup       func(*exec.Cmd) error
 	MaxRestarts int
-	Status      Status
-	Started     chan *exec.Cmd
+
+	Started chan *exec.Cmd
 
 	callbacks []func(*Subcmd)
-	current   *exec.Cmd
+
+	current *exec.Cmd
+	status  Status
 
 	lastErr    error
 	lastStatus int
@@ -54,68 +59,95 @@ type Subcmd struct {
 
 	waitCh chan error
 
-	mu sync.Mutex
+	cbMu   sync.Mutex
+	currMu sync.Mutex
+	statMu sync.Mutex
+	waitMu sync.Mutex
 }
 
 func New(name string, arg ...string) *Subcmd {
 	s := &Subcmd{
 		Cmd:         exec.Command(name, arg...),
 		MaxRestarts: -1,
-		Status:      StatusStopped,
+		status:      StatusStopped,
 	}
 	return s
 }
 
 func (sc *Subcmd) OnStatusChange(cb func(*Subcmd)) {
 	cb(sc)
-	sc.mu.Lock()
+	sc.cbMu.Lock()
 	sc.callbacks = append(sc.callbacks, cb)
-	sc.mu.Unlock()
+	sc.cbMu.Unlock()
+}
+
+func (sc *Subcmd) Status() Status {
+	sc.statMu.Lock()
+	defer sc.statMu.Unlock()
+	return sc.status
 }
 
 func (sc *Subcmd) Start() error {
-	if sc.Status == StatusStarting || sc.Status == StatusStarted {
+	if sc.Status() == StatusStarting || sc.Status() == StatusStarted {
 		return errors.New("already started")
 	}
 	return sc.start()
 }
 
 func (sc *Subcmd) Restart() error {
-	if sc.Status == StatusStarting {
+	if sc.Status() == StatusStarting {
 		return errors.New("already starting")
 	}
-	if sc.current != nil {
-		syscall.Kill(-sc.current.Process.Pid, syscall.SIGTERM)
+	if !Running(sc) {
+		return sc.start()
 	}
-	return sc.start()
+	return sc.terminate(false)
 }
 
 func (sc *Subcmd) Stop() error {
-	if sc.current == nil {
+	if !Running(sc) {
 		return errors.New("not running")
 	}
-	sc.setStatus(StatusStopped)
-	return syscall.Kill(-sc.current.Process.Pid, syscall.SIGTERM)
+	return sc.terminate(true)
+}
+
+func (sc *Subcmd) terminate(stop bool) error {
+	if stop {
+		defer sc.setStatus(StatusStopped)
+	}
+	syscall.Kill(-sc.current.Process.Pid, syscall.SIGTERM)
+	process, err := os.FindProcess(sc.current.Process.Pid)
+	if err != nil {
+		return nil
+	}
+	syscall.Kill(-process.Pid, syscall.SIGKILL)
+	return nil
 }
 
 func (sc *Subcmd) Wait() error {
+	sc.waitMu.Lock()
 	if sc.waitCh != nil {
+		sc.waitMu.Unlock()
 		return errors.New("wait already called")
 	}
 	sc.waitCh = make(chan error)
+	sc.waitMu.Unlock()
 	return <-sc.waitCh
 }
 
 func (sc *Subcmd) setStatus(s Status) {
-	if sc.Status == s {
+	sc.statMu.Lock()
+	if sc.status == s {
+		sc.statMu.Unlock()
 		return
 	}
-	sc.mu.Lock()
-	defer sc.mu.Unlock()
-	sc.Status = s
+	sc.status = s
+	sc.statMu.Unlock()
+	sc.cbMu.Lock()
 	for _, cb := range sc.callbacks {
 		cb(sc)
 	}
+	sc.cbMu.Unlock()
 }
 
 func (sc *Subcmd) Error() error {
@@ -123,6 +155,7 @@ func (sc *Subcmd) Error() error {
 }
 
 func (sc *Subcmd) start() (err error) {
+	sc.currMu.Lock()
 	sc.setStatus(StatusStarting)
 
 	sc.current = &exec.Cmd{
@@ -131,11 +164,12 @@ func (sc *Subcmd) start() (err error) {
 		Env:         sc.Cmd.Env,
 		Dir:         sc.Cmd.Dir,
 		ExtraFiles:  sc.Cmd.ExtraFiles,
-		SysProcAttr: sc.Cmd.SysProcAttr,
+		SysProcAttr: &syscall.SysProcAttr{Setpgid: true},
 	}
 
 	if sc.Setup != nil {
 		if err := sc.Setup(sc.current); err != nil {
+			sc.currMu.Unlock()
 			return err
 		}
 	}
@@ -143,10 +177,18 @@ func (sc *Subcmd) start() (err error) {
 	err = sc.current.Start()
 	if err != nil {
 		sc.setStatus(StatusStopped)
+		sc.currMu.Unlock()
 		return err
 	}
 
 	go func() {
+		// process died too quickly?
+		if sc.current.Process == nil {
+			sc.setStatus(StatusStopped)
+			sc.currMu.Unlock()
+			return
+		}
+
 		sc.setStatus(StatusStarted)
 		if sc.Started != nil {
 			sc.Started <- sc.current
@@ -154,31 +196,34 @@ func (sc *Subcmd) start() (err error) {
 
 		sc.lastErr = sc.current.Wait()
 		sc.lastStatus = exitStatus(sc.lastErr)
-		if sc.Status != StatusStopped {
+		if sc.Status() != StatusStopped {
 			sc.setStatus(StatusExited)
 		}
 
+		sc.waitMu.Lock()
 		if sc.waitCh != nil {
 			sc.waitCh <- sc.lastErr
 			sc.waitCh = nil
 		}
+		sc.waitMu.Unlock()
 
-		if sc.lastErr != nil {
+		if sc.lastErr != nil && sc.lastStatus != -1 {
+			sc.currMu.Unlock()
 			return
 		}
-		sc.current = nil
+		sc.currMu.Unlock()
 
 		if sc.MaxRestarts >= 0 && sc.restarts >= sc.MaxRestarts {
-			sc.setStatus(StatusStopped)
 			return
 		}
 
-		if sc.Status != StatusStopped {
+		if sc.Status() != StatusStopped {
 			if err := sc.start(); err != nil {
 				panic(err)
 			}
 			sc.restarts++
 		}
+
 	}()
 
 	return nil

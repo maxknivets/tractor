@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"syscall"
 
 	"github.com/manifold/tractor/pkg/agent"
 	"github.com/manifold/tractor/pkg/misc/daemon"
@@ -17,10 +16,9 @@ import (
 )
 
 type Service struct {
-	Agent    *agent.Agent
-	Logger   logging.DebugLogger
-	Daemon   *daemon.Daemon
-	ReloadCh chan struct{}
+	Agent  *agent.Agent
+	Logger logging.DebugLogger
+	Daemon *daemon.Daemon
 
 	subcmd *subcmd.Subcmd
 	stdin  io.WriteCloser
@@ -29,15 +27,13 @@ type Service struct {
 }
 
 func (s *Service) InitializeDaemon() (err error) {
-	if s.ReloadCh != nil {
-		go func() {
-			for range s.ReloadCh {
-				if s.subcmd != nil {
-					s.subcmd.Restart()
-				}
+	go func() {
+		for range s.Agent.WorkspacesChanged {
+			if s.subcmd != nil {
+				s.subcmd.Restart()
 			}
-		}()
-	}
+		}
+	}()
 	return s.start()
 }
 
@@ -48,15 +44,12 @@ func (s *Service) start() (err error) {
 
 		cmd.Stderr = os.Stderr
 		cmd.Env = []string{"SYSTRAY_SUBPROCESS=1"}
-		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 		if s.stdin, err = cmd.StdinPipe(); err != nil {
 			return err
 		}
 		if s.stdout, err = cmd.StdoutPipe(); err != nil {
 			return err
 		}
-
-		s.inbox = make(chan Message)
 
 		return nil
 	}
@@ -66,6 +59,7 @@ func (s *Service) start() (err error) {
 
 func (s *Service) Serve(ctx context.Context) {
 	for range s.subcmd.Started {
+		s.inbox = make(chan Message)
 		go s.receiveMessages()
 
 		workspaces, err := s.Agent.Workspaces()
@@ -78,7 +72,7 @@ func (s *Service) Serve(ctx context.Context) {
 			items = append(items, MenuItem{
 				Title:   ws.Name,
 				Tooltip: "Open workspace",
-				Icon:    ws.Status.String(),
+				Icon:    ws.Status().String(),
 				Enabled: true,
 			})
 			ws.OnStatusChange(func(ws *agent.Workspace) {
@@ -87,7 +81,7 @@ func (s *Service) Serve(ctx context.Context) {
 					Item: &MenuItem{
 						Title:   ws.Name,
 						Tooltip: "Open workspace",
-						Icon:    ws.Status.String(),
+						Icon:    ws.Status().String(),
 						Enabled: true,
 					},
 					Idx: idx,
@@ -151,6 +145,7 @@ func (s *Service) receiveMessages() {
 		var msg Message
 		if err := json.Unmarshal(scanner.Bytes(), &msg); err != nil {
 			s.Logger.Debug(err)
+			break
 		}
 		s.inbox <- msg
 	}

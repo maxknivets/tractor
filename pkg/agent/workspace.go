@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -8,7 +9,9 @@ import (
 	"path/filepath"
 	"sync"
 	"syscall"
+	"time"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/manifold/tractor/pkg/agent/console"
 	"github.com/manifold/tractor/pkg/data/icons"
 	"github.com/manifold/tractor/pkg/misc/buffer"
@@ -44,9 +47,9 @@ type Workspace struct {
 	SymlinkPath string // absolute path to symlink file (~/.tractor/workspaces/{name})
 	TargetPath  string // absolute path to target of symlink (actual workspace)
 	SocketPath  string // absolute path to socket file (~/.tractor/sockets/{name}.sock)
-	Status      WorkspaceStatus
 
 	log             logging.Logger
+	status          WorkspaceStatus
 	consolePipe     io.WriteCloser
 	statusCallbacks []func(*Workspace)
 	goBin           string
@@ -54,7 +57,8 @@ type Workspace struct {
 	daemon          *subcmd.Subcmd
 
 	starting sync.Mutex
-	mu       sync.Mutex
+	statMu   sync.Mutex
+	cbMu     sync.Mutex
 }
 
 func InitWorkspace(a *Agent, name string) (*Workspace, error) {
@@ -64,7 +68,7 @@ func InitWorkspace(a *Agent, name string) (*Workspace, error) {
 		return nil, err
 	}
 	var consolePipe io.WriteCloser
-	if svc, ok := a.Logger.(*console.Service); ok {
+	if svc, ok := a.Logger.(*console.Service); ok && svc != nil {
 		consolePipe = svc.NewPipe(name)
 	}
 	ws := &Workspace{
@@ -72,7 +76,7 @@ func InitWorkspace(a *Agent, name string) (*Workspace, error) {
 		SymlinkPath:     symlinkPath,
 		TargetPath:      targetPath,
 		SocketPath:      filepath.Join(a.WorkspaceSocketsPath, fmt.Sprintf("%s.sock", name)),
-		Status:          StatusPartially,
+		status:          StatusPartially,
 		goBin:           a.GoBin,
 		statusCallbacks: make([]func(*Workspace), 0),
 		log:             a.Logger,
@@ -86,6 +90,12 @@ func InitWorkspace(a *Agent, name string) (*Workspace, error) {
 		return nil, err
 	}
 	return ws, nil
+}
+
+func (w *Workspace) Status() WorkspaceStatus {
+	w.statMu.Lock()
+	defer w.statMu.Unlock()
+	return w.status
 }
 
 func (w *Workspace) startDaemon() error {
@@ -113,7 +123,7 @@ func (w *Workspace) startDaemon() error {
 	}
 
 	w.daemon.OnStatusChange(func(cmd *subcmd.Subcmd) {
-		switch cmd.Status {
+		switch cmd.Status() {
 		case subcmd.StatusStarted:
 			w.setStatus(StatusAvailable)
 		case subcmd.StatusExited:
@@ -137,6 +147,50 @@ func (w *Workspace) cleanup() {
 	// workplace/init package should clean up its own socket
 	os.RemoveAll(w.SocketPath)
 	w.consoleBuf.Close()
+}
+
+func (w *Workspace) Serve(ctx context.Context) {
+	watcher, err := fsnotify.NewWatcher()
+	if err != nil {
+		info(w.log, "unable to create watcher:", err)
+		return
+	}
+	for _, path := range collectDirs(w.TargetPath, []string{"node_modules", ".git"}) {
+		err = watcher.Add(path)
+		if err != nil {
+			info(w.log, "unable to watch path:", path, err)
+			return
+		}
+	}
+	debounce := Debounce(20 * time.Millisecond)
+	for {
+		select {
+		case <-ctx.Done():
+			watcher.Close()
+			return
+		case event, ok := <-watcher.Events:
+			if !ok {
+				return
+			}
+			if event.Op&fsnotify.Chmod == fsnotify.Chmod {
+				continue
+			}
+			if filepath.Ext(event.Name) != ".go" {
+				continue
+			}
+
+			debounce(func() {
+				info(w.log, "reloading workspace:", w.Name)
+				w.daemon.Restart()
+			})
+
+		case err, ok := <-watcher.Errors:
+			if !ok {
+				return
+			}
+			logErr(w.log, "watcher error:", err)
+		}
+	}
 }
 
 func (w *Workspace) Connect() (io.ReadCloser, error) {
@@ -164,26 +218,50 @@ func (w *Workspace) Stop() error {
 
 func (w *Workspace) OnStatusChange(cb func(*Workspace)) {
 	cb(w)
-	w.mu.Lock()
+	w.cbMu.Lock()
 	w.statusCallbacks = append(w.statusCallbacks, cb)
-	w.mu.Unlock()
+	w.cbMu.Unlock()
 }
 
 func (w *Workspace) BufferStatus() (int, int64) {
 	return w.consoleBuf.Status()
 }
 
-// always run when w.mu mutex is locked
 func (w *Workspace) setStatus(s WorkspaceStatus) {
-	if w.Status == s {
+	w.statMu.Lock()
+	if w.status == s {
+		w.statMu.Unlock()
 		return
 	}
-	info(w.log, "[workspace]", w.Name, "state:", w.Status, "=>", s)
+	info(w.log, "[workspace]", w.Name, "state:", w.status, "=>", s)
 
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	w.Status = s
+	w.status = s
+	w.statMu.Unlock()
+	w.cbMu.Lock()
 	for _, cb := range w.statusCallbacks {
 		cb(w)
 	}
+	w.cbMu.Unlock()
+}
+
+func collectDirs(path string, ignoreNames []string) []string {
+	var dirs []string
+	err := filepath.Walk(path, func(p string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			for _, name := range ignoreNames {
+				if info.Name() == name {
+					return filepath.SkipDir
+				}
+			}
+			dirs = append(dirs, p)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil
+	}
+	return dirs
 }

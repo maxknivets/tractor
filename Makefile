@@ -3,7 +3,7 @@
 setup: dev/workspace dev/bin extension/node_modules
 	make build
 	
-build: clobber dev/bin/tractor-agent dev/bin/tractor extension/out
+build: clobber extension/out dev/bin/tractor-agent dev/bin/tractor 
 
 clobber:
 	rm -rf dev/bin/tractor 
@@ -15,8 +15,8 @@ dev/bin/tractor-agent: dev/bin
 dev/bin/tractor: dev/bin
 	go build -o ./dev/bin/tractor ./cmd/tractor
 
-dev: dev/bin/tractor
-	./dev/bin/tractor dev
+dev:
+	./dev/bin/tractor-agent --dev
 
 extension/node_modules:
 	cd extension && yarn link qmux qrpc

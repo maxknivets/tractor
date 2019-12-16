@@ -9,8 +9,12 @@ import (
 	"os/user"
 	"path/filepath"
 	"sync"
+	"time"
+	"unsafe"
 
 	"github.com/fsnotify/fsnotify"
+	"github.com/manifold/tractor/pkg/agent/console"
+	"github.com/manifold/tractor/pkg/misc/daemon"
 	"github.com/manifold/tractor/pkg/misc/logging"
 	"github.com/manifold/tractor/pkg/misc/logging/null"
 )
@@ -22,25 +26,33 @@ type Agent struct {
 	WorkspacesPath       string // ~/.tractor/workspaces
 	WorkspaceSocketsPath string // ~/.tractor/sockets
 	GoBin                string
+	DevMode              bool
 
-	Logger logging.Logger
+	Daemon  *daemon.Daemon
+	Console *console.Service
+	Logger  logging.Logger
 
-	workspaces map[string]*Workspace
-	mu         sync.RWMutex
+	WorkspacesChanged chan struct{}
+	workspaces        map[string]*Workspace
+	mu                sync.RWMutex
 }
 
 // Open returns a new agent for the given path. If the given path is empty, a
 // default of ~/.tractor will be used.
-func Open(path string) (*Agent, error) {
+func Open(path string, console *console.Service, devMode bool) (*Agent, error) {
 	bin, err := exec.LookPath("go")
 	if err != nil {
 		return nil, err
 	}
 
 	a := &Agent{
-		Path:       path,
-		GoBin:      bin,
-		workspaces: make(map[string]*Workspace),
+		DevMode:           devMode,
+		Console:           console,
+		Logger:            console,
+		Path:              path,
+		GoBin:             bin,
+		workspaces:        make(map[string]*Workspace),
+		WorkspacesChanged: make(chan struct{}),
 	}
 
 	if len(a.Path) == 0 {
@@ -54,12 +66,29 @@ func Open(path string) (*Agent, error) {
 	a.SocketPath = filepath.Join(a.Path, "agent.sock")
 	a.WorkspacesPath = filepath.Join(a.Path, "workspaces")
 	a.WorkspaceSocketsPath = filepath.Join(a.Path, "sockets")
-	a.Logger = &null.Logger{}
+	if a.Logger == nil {
+		a.Logger = &null.Logger{}
+	}
 
 	os.MkdirAll(a.WorkspacesPath, 0700)
 	os.MkdirAll(a.WorkspaceSocketsPath, 0700)
 
 	return a, nil
+}
+
+func (a *Agent) InitializeDaemon() (err error) {
+	spaces, err := a.Workspaces()
+	if err != nil {
+		return err
+	}
+	for _, space := range spaces {
+		a.Daemon.AddServices(space)
+	}
+	return nil
+}
+
+func (a *Agent) Serve(ctx context.Context) {
+	a.Watch(ctx)
 }
 
 // Workspace returns a Workspace for the given path. The path must match
@@ -165,13 +194,14 @@ func (a *Agent) Shutdown() {
 	}
 }
 
-func (a *Agent) Watch(ctx context.Context, ch chan struct{}) {
+func (a *Agent) Watch(ctx context.Context) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		info(a.Logger, "unable to create watcher:", err)
 		return
 	}
 	watcher.Add(a.WorkspacesPath)
+	debounce := Debounce(20 * time.Millisecond)
 	for {
 		select {
 		case <-ctx.Done():
@@ -185,7 +215,9 @@ func (a *Agent) Watch(ctx context.Context, ch chan struct{}) {
 				continue
 			}
 
-			ch <- struct{}{}
+			debounce(func() {
+				a.WorkspacesChanged <- struct{}{}
+			})
 
 		case err, ok := <-watcher.Errors:
 			if !ok {
@@ -231,13 +263,46 @@ func defaultPath() (string, error) {
 }
 
 func info(l logging.Logger, args ...interface{}) {
-	if l != nil {
+	if !isNilValue(l) {
 		l.Info(args...)
 	}
 }
 
 func logErr(l logging.Logger, args ...interface{}) {
-	if l != nil {
+	if !isNilValue(l) {
 		l.Error(args...)
 	}
+}
+
+func isNilValue(i interface{}) bool {
+	return (*[2]uintptr)(unsafe.Pointer(&i))[1] == 0
+}
+
+// New returns a debounced function that takes another functions as its argument.
+// This function will be called when the debounced function stops being called
+// for the given duration.
+// The debounced function can be invoked with different functions, if needed,
+// the last one will win.
+func Debounce(after time.Duration) func(f func()) {
+	d := &debouncer{after: after}
+
+	return func(f func()) {
+		d.add(f)
+	}
+}
+
+type debouncer struct {
+	mu    sync.Mutex
+	after time.Duration
+	timer *time.Timer
+}
+
+func (d *debouncer) add(f func()) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	if d.timer != nil {
+		d.timer.Stop()
+	}
+	d.timer = time.AfterFunc(d.after, f)
 }

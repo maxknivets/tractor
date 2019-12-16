@@ -48,6 +48,12 @@ func (s *Service) InitializeDaemon() (err error) {
 			return err
 		}
 	}
+	for _, path := range collectDirs("./com", nil) {
+		err = s.watcher.Add(path)
+		if err != nil {
+			return err
+		}
+	}
 
 	return err
 }
@@ -104,7 +110,7 @@ func (s *Service) Serve(ctx context.Context) {
 					}
 				}()
 				go func() {
-					cmd := exec.Command("go", "test", "./pkg/...")
+					cmd := exec.Command("go", "test", "-race", "./pkg/...")
 					cmd.Stdout = s.output
 					cmd.Stderr = s.output
 					err := cmd.Run()
