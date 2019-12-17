@@ -10,7 +10,7 @@ import (
 	ct "github.com/daviddengcn/go-colortext"
 )
 
-type Console struct {
+type LineWriter struct {
 	Output  io.Writer
 	Padding int
 
@@ -27,11 +27,11 @@ var colors = []ct.Color{
 	ct.Blue,
 }
 
-func (of *Console) Wait() {
+func (of *LineWriter) Wait() {
 	of.wg.Wait()
 }
 
-func (of *Console) LineReader(name string, index int, r io.Reader, isError bool) {
+func (of *LineWriter) LineReader(name string, index int, r io.Reader, isError bool) {
 	of.wg.Add(1)
 	defer of.wg.Done()
 
@@ -75,7 +75,7 @@ func (of *Console) LineReader(name string, index int, r io.Reader, isError bool)
 }
 
 // Write out a single coloured line
-func (of *Console) WriteLine(left, right string, leftC, rightC ct.Color, isError bool) {
+func (of *LineWriter) WriteLine(left, right string, leftC, rightC ct.Color, isError bool) {
 	of.mu.Lock()
 	defer of.mu.Unlock()
 

@@ -10,7 +10,7 @@ import (
 	"github.com/manifold/qtalk/libmux/mux"
 	"github.com/manifold/qtalk/qrpc"
 	"github.com/manifold/tractor/pkg/agent"
-	"github.com/manifold/tractor/pkg/logging"
+	"github.com/manifold/tractor/pkg/misc/logging"
 )
 
 // Service provides a QRPC server to connect, restart, and stop running
@@ -79,7 +79,7 @@ func wsStatus(a *agent.Agent) (string, error) {
 	for i, ws := range workspaces {
 		p, w := ws.BufferStatus()
 		pairs[i] = fmt.Sprintf("%s=%s (%d pipe(s), %d written)",
-			ws.Name, ws.Status, p, w)
+			ws.Name, ws.Status(), p, w)
 	}
 	return strings.Join(pairs, ", "), nil
 }

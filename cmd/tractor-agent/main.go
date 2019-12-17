@@ -7,12 +7,12 @@ import (
 	"os"
 
 	"github.com/manifold/tractor/pkg/agent"
-	"github.com/manifold/tractor/pkg/agent/logger"
+	"github.com/manifold/tractor/pkg/agent/console"
 	"github.com/manifold/tractor/pkg/agent/rpc"
 	"github.com/manifold/tractor/pkg/agent/selfdev"
 	"github.com/manifold/tractor/pkg/agent/systray"
 	"github.com/manifold/tractor/pkg/agent/systray/subprocess"
-	"github.com/manifold/tractor/pkg/daemon"
+	"github.com/manifold/tractor/pkg/misc/daemon"
 	"github.com/spf13/cobra"
 )
 
@@ -42,33 +42,36 @@ func runAgent(cmd *cobra.Command, args []string) {
 		subprocess.Run()
 		return
 	}
-	ctx := context.Background()
 
-	logs := logger.New()
+	ctx := context.Background()
 	ag := openAgent()
-	ag.Logger = logs
+
 	if agentSockExists(ag) && devMode {
 		fmt.Println("Agent will not run in dev mode if agent socket exists.")
 		return
 	}
-	wsCh := make(chan struct{})
-	go ag.Watch(ctx, wsCh)
-	services := []daemon.Service{
-		logs,
-		&systray.Service{Agent: ag, ReloadCh: wsCh},
-		&rpc.Service{Agent: ag},
-	}
-	if devMode {
-		services = append(services, []daemon.Service{
-			&selfdev.Service{Agent: ag},
-		}...)
-	}
-	dm := daemon.New(services...)
+
+	dm := daemon.New(services(ag)...)
 	fatal(dm.Run(ctx))
 }
 
+func services(a *agent.Agent) []daemon.Service {
+	services := []daemon.Service{
+		a,
+		a.Console,
+		&systray.Service{},
+		&rpc.Service{},
+	}
+	if devMode {
+		services = append(services, []daemon.Service{
+			&selfdev.Service{},
+		}...)
+	}
+	return services
+}
+
 func openAgent() *agent.Agent {
-	ag, err := agent.Open(tractorUserPath)
+	ag, err := agent.Open(tractorUserPath, console.New(), devMode)
 	fatal(err)
 	return ag
 }

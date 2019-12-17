@@ -133,7 +133,7 @@ func setupAgent(t *testing.T, setupFn func(*Agent)) (*Agent, func()) {
 }
 
 func newAgent(t *testing.T, path string) *Agent {
-	ag, err := Open(path)
+	ag, err := Open(path, nil, false)
 	assert.Nil(t, err)
 	return ag
 }

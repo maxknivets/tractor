@@ -30,7 +30,6 @@ func main() {
 
 func init() {
 	rootCmd.AddCommand(agentCmd())
-	rootCmd.AddCommand(selfdevCmd())
 
 	ct, cancelFunc := context.WithCancel(context.Background())
 	sigQuit = ct

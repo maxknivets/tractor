@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/manifold/tractor/pkg/manifold"
-	frontend "github.com/manifold/tractor/pkg/session"
+	"github.com/manifold/tractor/pkg/workspace/view"
 	"github.com/urfave/negroni"
 )
 
@@ -22,8 +22,8 @@ type Server struct {
 	s *http.Server
 }
 
-func (c *Server) InspectorButtons() []frontend.Button {
-	return []frontend.Button{{
+func (c *Server) InspectorButtons() []view.Button {
+	return []view.Button{{
 		Name: "Serve",
 	}}
 }

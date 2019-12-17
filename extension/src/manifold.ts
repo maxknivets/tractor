@@ -5,6 +5,8 @@ import * as os from 'os';
 import * as qmux from 'qmux';
 import * as qrpc from 'qrpc';
 
+const RetryInterval = 500;
+
 export class TreeExplorer {
 
 	explorer: vscode.TreeView<Node>;
@@ -34,14 +36,14 @@ export class TreeExplorer {
 		} catch (e) {
 			setTimeout(() => {
 				this.connectAgent(workspacePath);
-			}, 200);
+			}, RetryInterval);
 			return;
 		}
 		conn.socket.onclose = () => {
 			conn.close();
 			setTimeout(() => {
 				this.connectAgent(workspacePath);
-			}, 200);
+			}, RetryInterval);
 		};
 		let agent = new qrpc.Client(new qmux.Session(conn));
 		let resp = await agent.call("connect", workspacePath);
@@ -49,22 +51,32 @@ export class TreeExplorer {
 	}
 
 	async connect(socketPath: string) {
+		console.log("connecting...");
 		try {
 			var conn = await qmux.DialUnix(socketPath);
 		} catch (e) {
 			setTimeout(() => {
 				this.connect(socketPath);
-			}, 200);
+			}, RetryInterval);
 			return;
 		}
 		conn.socket.onclose = () => {
 			conn.close();
 			setTimeout(() => {
 				this.connect(socketPath);
-			}, 200);
+			}, RetryInterval);
 		};
 		var session = new qmux.Session(conn);
 		this.client = new qrpc.Client(session, this.api);
+		this.api.handle("shutdown", {
+			"serveRPC": async (r, c) => {
+				console.log("reload/shutdown received...");
+				//this.client.close();
+				setTimeout(() => {
+					this.connect(socketPath);
+				}, 10000); // TODO: something better
+			}
+		});
 		this.client.serveAPI();
 		//window.rpc = client;
 		await this.client.call("subscribe");

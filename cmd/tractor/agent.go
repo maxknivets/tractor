@@ -112,7 +112,7 @@ func agentQRPCCall(w io.Writer, cmd, wspath string) (string, error) {
 }
 
 func openAgent() *agent.Agent {
-	ag, err := agent.Open(tractorUserPath)
+	ag, err := agent.Open(tractorUserPath, nil, false)
 	fatal(err)
 	return ag
 }

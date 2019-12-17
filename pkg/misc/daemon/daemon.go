@@ -10,8 +10,8 @@ import (
 	"sync/atomic"
 	"syscall"
 
-	"github.com/manifold/tractor/pkg/logging"
-	"github.com/manifold/tractor/pkg/registry"
+	"github.com/manifold/tractor/pkg/misc/logging"
+	"github.com/manifold/tractor/pkg/misc/registry"
 )
 
 // Initializer is initialized before services are started. Returning
@@ -48,11 +48,7 @@ type Daemon struct {
 // that was passed in.
 func New(services ...Service) *Daemon {
 	d := &Daemon{}
-	r, _ := registry.New(d)
-	for _, s := range services {
-		r.Register(s)
-	}
-	r.SelfPopulate()
+	d.AddServices(services...)
 	return d
 }
 
@@ -60,6 +56,18 @@ func New(services ...Service) *Daemon {
 func Run(services ...Service) error {
 	d := New(services...)
 	return d.Run(context.Background())
+}
+
+func (d *Daemon) AddServices(services ...Service) {
+	r, _ := registry.New(d)
+	for _, s := range d.Services {
+		r.Register(s)
+	}
+	for _, s := range services {
+		r.Register(s)
+		d.Services = append(d.Services, s)
+	}
+	r.SelfPopulate()
 }
 
 // Run executes the daemon lifecycle
@@ -130,7 +138,6 @@ func (d *Daemon) Terminate() {
 	if d == nil {
 		// find these cases and prevent them!
 		panic("daemon reference used to Terminate but daemon pointer is nil")
-		return
 	}
 
 	if !atomic.CompareAndSwapInt32(&d.running, 1, 0) {
