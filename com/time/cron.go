@@ -7,6 +7,5 @@ func init() {
 }
 
 type CronManager struct {
-	Hello  string
-	Hello2 string
+	Hello string
 }

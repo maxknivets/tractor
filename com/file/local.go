@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/manifold/tractor/pkg/manifold"
-	frontend "github.com/manifold/tractor/pkg/session"
+	frontend "github.com/manifold/tractor/pkg/workspace/view"
 )
 
 func init() {
