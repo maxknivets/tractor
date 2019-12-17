@@ -175,7 +175,20 @@ func (w *Workspace) Serve(ctx context.Context) {
 			if event.Op&fsnotify.Chmod == fsnotify.Chmod {
 				continue
 			}
-			if filepath.Ext(event.Name) != ".go" {
+
+			dirCreated := false
+			if event.Op&fsnotify.Create == fsnotify.Create {
+				fi, err := os.Stat(event.Name)
+				if err != nil {
+					info(w.log, "watcher:", err)
+				}
+				if fi.IsDir() {
+					watcher.Add(event.Name)
+					dirCreated = true
+				}
+			}
+
+			if filepath.Ext(event.Name) != ".go" && !dirCreated {
 				continue
 			}
 
