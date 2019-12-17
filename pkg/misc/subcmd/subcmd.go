@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/manifold/tractor/pkg/data/icons"
 )
@@ -60,9 +61,10 @@ type Subcmd struct {
 	waitCh chan error
 
 	cbMu   sync.Mutex
-	currMu sync.Mutex
+	runMu  sync.Mutex
 	statMu sync.Mutex
 	waitMu sync.Mutex
+	pidMu  sync.Mutex
 }
 
 func New(name string, arg ...string) *Subcmd {
@@ -115,13 +117,24 @@ func (sc *Subcmd) terminate(stop bool) error {
 	if stop {
 		defer sc.setStatus(StatusStopped)
 	}
-	syscall.Kill(-sc.current.Process.Pid, syscall.SIGTERM)
-	process, err := os.FindProcess(sc.current.Process.Pid)
-	if err != nil {
-		return nil
+	sc.pidMu.Lock()
+	pid := sc.current.Process.Pid
+	sc.pidMu.Unlock()
+	syscall.Kill(-pid, syscall.SIGTERM)
+	timeout := time.After(3 * time.Second)
+	for {
+		select {
+		case <-timeout:
+			syscall.Kill(-pid, syscall.SIGKILL)
+			return nil
+		default:
+			process, _ := os.FindProcess(pid)
+			if process == nil {
+				return nil
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
 	}
-	syscall.Kill(-process.Pid, syscall.SIGKILL)
-	return nil
 }
 
 func (sc *Subcmd) Wait() error {
@@ -155,9 +168,10 @@ func (sc *Subcmd) Error() error {
 }
 
 func (sc *Subcmd) start() (err error) {
-	sc.currMu.Lock()
+	sc.runMu.Lock()
 	sc.setStatus(StatusStarting)
 
+	sc.pidMu.Lock()
 	sc.current = &exec.Cmd{
 		Path:        sc.Cmd.Path,
 		Args:        sc.Cmd.Args,
@@ -166,10 +180,11 @@ func (sc *Subcmd) start() (err error) {
 		ExtraFiles:  sc.Cmd.ExtraFiles,
 		SysProcAttr: &syscall.SysProcAttr{Setpgid: true},
 	}
+	sc.pidMu.Unlock()
 
 	if sc.Setup != nil {
 		if err := sc.Setup(sc.current); err != nil {
-			sc.currMu.Unlock()
+			sc.runMu.Unlock()
 			return err
 		}
 	}
@@ -177,7 +192,7 @@ func (sc *Subcmd) start() (err error) {
 	err = sc.current.Start()
 	if err != nil {
 		sc.setStatus(StatusStopped)
-		sc.currMu.Unlock()
+		sc.runMu.Unlock()
 		return err
 	}
 
@@ -185,7 +200,7 @@ func (sc *Subcmd) start() (err error) {
 		// process died too quickly?
 		if sc.current.Process == nil {
 			sc.setStatus(StatusStopped)
-			sc.currMu.Unlock()
+			sc.runMu.Unlock()
 			return
 		}
 
@@ -208,10 +223,10 @@ func (sc *Subcmd) start() (err error) {
 		sc.waitMu.Unlock()
 
 		if sc.lastErr != nil && sc.lastStatus != -1 {
-			sc.currMu.Unlock()
+			sc.runMu.Unlock()
 			return
 		}
-		sc.currMu.Unlock()
+		sc.runMu.Unlock()
 
 		if sc.MaxRestarts >= 0 && sc.restarts >= sc.MaxRestarts {
 			return
