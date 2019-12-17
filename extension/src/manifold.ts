@@ -68,6 +68,15 @@ export class TreeExplorer {
 		};
 		var session = new qmux.Session(conn);
 		this.client = new qrpc.Client(session, this.api);
+		this.api.handle("shutdown", {
+			"serveRPC": async (r, c) => {
+				console.log("reload/shutdown received...");
+				//this.client.close();
+				setTimeout(() => {
+					this.connect(socketPath);
+				}, 10000); // TODO: something better
+			}
+		});
 		this.client.serveAPI();
 		//window.rpc = client;
 		await this.client.call("subscribe");
