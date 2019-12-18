@@ -116,7 +116,6 @@ func (sc *Subcmd) Start() error {
 	return sc.start()
 }
 
-// CONTINUE: workspace daemon not reloading when this is called from watcher
 func (sc *Subcmd) Restart() error {
 	if sc.Status() == StatusStarting {
 		return ErrStarting
@@ -149,11 +148,13 @@ func (sc *Subcmd) terminate() error {
 	}
 	pid := sc.current.Process.Pid
 	sc.pidMu.Unlock()
-	syscall.Kill(-pid, syscall.SIGTERM)
+	logging.Debug(sc.Log, "sending SIGINT to PID ", pid)
+	syscall.Kill(-pid, syscall.SIGINT)
 	timeout := time.After(3 * time.Second) // TODO: configurable
 	for {
 		select {
 		case <-timeout:
+			logging.Debug(sc.Log, "sending SIGKILL to PID ", pid)
 			syscall.Kill(-pid, syscall.SIGKILL)
 			return nil
 		default:

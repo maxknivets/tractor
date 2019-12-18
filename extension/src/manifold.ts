@@ -74,7 +74,7 @@ export class TreeExplorer {
 				//this.client.close();
 				setTimeout(() => {
 					this.connect(socketPath);
-				}, 10000); // TODO: something better
+				}, 4000); // TODO: something better
 			}
 		});
 		this.client.serveAPI();

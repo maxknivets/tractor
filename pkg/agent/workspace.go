@@ -50,6 +50,7 @@ type Workspace struct {
 	SymlinkPath string // absolute path to symlink file (~/.tractor/workspaces/{name})
 	TargetPath  string // absolute path to target of symlink (actual workspace)
 	SocketPath  string // absolute path to socket file (~/.tractor/sockets/{name}.sock)
+	BinPath     string // absolute path to compiled binary (~/.tractor/bin/{name})
 
 	log         logging.Logger
 	status      WorkspaceStatus
@@ -58,6 +59,7 @@ type Workspace struct {
 	consoleBuf  *buffer.Buffer
 	daemon      *subcmd.Subcmd
 	daemonCmd   []string
+	goBin       string
 
 	starting sync.Mutex
 	statMu   sync.Mutex
@@ -66,6 +68,7 @@ type Workspace struct {
 
 func OpenWorkspace(a *Agent, name string) (*Workspace, error) {
 	symlinkPath := filepath.Join(a.WorkspacesPath, name)
+	binPath := filepath.Join(a.WorkspaceBinPath, name)
 	targetPath, err := os.Readlink(symlinkPath)
 	if err != nil {
 		return nil, err
@@ -80,11 +83,13 @@ func OpenWorkspace(a *Agent, name string) (*Workspace, error) {
 		SymlinkPath: symlinkPath,
 		TargetPath:  targetPath,
 		SocketPath:  socketPath,
+		BinPath:     binPath,
 		status:      StatusPartially,
 		observers:   make([]WorkspaceObserver, 0),
 		log:         a.Logger,
 		consolePipe: consolePipe,
-		daemonCmd: []string{a.GoBin, "run", "workspace.go",
+		goBin:       a.GoBin,
+		daemonCmd: []string{binPath,
 			"-proto", "unix", "-addr", socketPath},
 	}
 	ws.consoleBuf, err = buffer.NewBuffer(1024 * 1024)
@@ -100,6 +105,19 @@ func (w *Workspace) Status() WorkspaceStatus {
 	return w.status
 }
 
+func (w *Workspace) Recompile() error {
+	cmd := exec.Command("go", "build", "-o", w.BinPath, ".")
+	cmd.Dir = w.TargetPath
+	if w.consolePipe != nil {
+		cmd.Stdout = w.consolePipe
+		cmd.Stderr = w.consolePipe
+	} else {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	}
+	return cmd.Run()
+}
+
 func (w *Workspace) SetDaemonCmd(args ...string) {
 	w.daemonCmd = args
 }
@@ -113,6 +131,11 @@ func (w *Workspace) signal(sig os.Signal) {
 func (w *Workspace) StartDaemon() error {
 	if w.daemon != nil {
 		return errors.New("daemon already started")
+	}
+	if _, err := os.Stat(w.BinPath); os.IsNotExist(err) {
+		if err := w.Recompile(); err != nil {
+			return err
+		}
 	}
 	w.daemon = subcmd.New(w.daemonCmd[0], w.daemonCmd[1:]...)
 	w.daemon.Setup = func(cmd *exec.Cmd) error {
@@ -210,6 +233,11 @@ func (w *Workspace) Serve(ctx context.Context) {
 			}
 
 			debounce(func() {
+				info(w.log, "recompiling workspace:", w.Name)
+				if err := w.Recompile(); err != nil {
+					info(w.log, err)
+					return
+				}
 				info(w.log, "reloading workspace:", w.Name)
 				if err := w.daemon.Restart(); err != nil {
 					info(w.log, err)
