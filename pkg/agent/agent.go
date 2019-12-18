@@ -173,7 +173,7 @@ func (a *Agent) Workspaces() ([]*Workspace, error) {
 		n := entry.Name()
 		ws := a.workspaces[n]
 		if ws == nil {
-			ws, err = InitWorkspace(a, n)
+			ws, err = OpenWorkspace(a, n)
 			if err != nil {
 				return nil, err
 			}

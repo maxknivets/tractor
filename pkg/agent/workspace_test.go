@@ -1,11 +1,12 @@
 package agent
 
 import (
+	"bufio"
 	"bytes"
 	"io"
+	"io/ioutil"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -15,32 +16,31 @@ func TestWorkspace(t *testing.T) {
 	ag, teardown := setup(t, "test1", "test2", "test3")
 	defer teardown()
 
-	// t.Run("stop/start", func(t *testing.T) {
-	// 	ws := ag.Workspace("test1")
-	// 	require.NotNil(t, ws)
-	// 	assert.Equal(t, StatusAvailable, ws.Status)
+	t.Run("stop/start", func(t *testing.T) {
+		status, ws := setupWorkspace(t, ag, "test1")
+		assert.Equal(t, StatusAvailable, <-status)
 
-	// 	assert.Nil(t, ws.Stop())
-	// 	assert.Equal(t, StatusUnavailable, ws.Status)
+		assert.Nil(t, ws.Stop())
+		assert.Equal(t, StatusUnavailable, <-status)
 
-	// 	assert.Nil(t, ws.Start())
-	// 	time.Sleep(80 * time.Millisecond)
-	// 	assert.Equal(t, StatusAvailable, ws.Status)
-	// })
+		assert.Nil(t, ws.Start())
+		assert.Equal(t, StatusAvailable, <-status)
+	})
 
 	t.Run("connect/stop", func(t *testing.T) {
-		ws := ag.Workspace("test2")
-		require.NotNil(t, ws)
-		assert.Equal(t, StatusAvailable, ws.Status())
+		status, ws := setupWorkspace(t, ag, "test2")
+		assert.Equal(t, StatusAvailable, <-status)
 
-		connCh := readWorkspace(t, ws.Connect)
-		time.Sleep(time.Second)
+		out, err := ws.Connect()
+		assert.NoError(t, err)
+		scanner := bufio.NewScanner(out)
+		for scanner.Scan() {
+			assert.True(t, strings.HasPrefix(scanner.Text(), "pid "))
+			break
+		}
 
-		ws.Stop()
-		assert.Equal(t, StatusUnavailable, ws.Status())
-
-		connOut := strings.TrimSpace(string(<-connCh))
-		assert.True(t, strings.HasPrefix(connOut, "pid "))
+		assert.NoError(t, ws.Stop())
+		assert.Equal(t, StatusUnavailable, <-status)
 	})
 
 	// t.Run("connect/stop", func(t *testing.T) {
@@ -60,23 +60,36 @@ func TestWorkspace(t *testing.T) {
 	// })
 
 	t.Run("erroring workspace", func(t *testing.T) {
-		ws := ag.Workspace("err")
-		require.NotNil(t, ws)
-		//assert.Equal(t, StatusUnavailable, ws.Status)
+		status, ws := setupWorkspace(t, ag, "err")
+		assert.Equal(t, StatusAvailable, <-status)
 
-		startCh := readWorkspace(t, ws.Connect)
-		time.Sleep(time.Second)
-		assert.Equal(t, StatusUnavailable, ws.Status())
+		out, err := ws.Connect()
+		assert.NoError(t, err)
+		b, err := ioutil.ReadAll(out)
+		assert.NoError(t, err)
+		assert.True(t, strings.HasPrefix(string(b), "boomtown "))
 
-		startOut := strings.TrimSpace(string(<-startCh))
-		assert.True(t, strings.HasPrefix(startOut, "boomtown "))
+		assert.Equal(t, 1, ws.daemon.ExitStatus())
+		assert.Equal(t, StatusUnavailable, <-status)
 	})
 }
 
-func readWorkspace(t *testing.T, wsFunc func() (io.ReadCloser, error)) chan []byte {
+func setupWorkspace(t *testing.T, ag *Agent, name string) (chan WorkspaceStatus, *Workspace) {
+	status := make(chan WorkspaceStatus, 3)
+	ws := ag.Workspace(name)
+	require.NotNil(t, ws)
+	//ws.SetDaemonCmd("cat")
+	ws.Observe(func(_ *Workspace, newStatus WorkspaceStatus) {
+		status <- newStatus
+	})
+	require.NoError(t, ws.StartDaemon())
+	return status, ws
+}
+
+func workspaceConnect(t *testing.T, ws *Workspace) chan []byte {
 	ch := make(chan []byte)
 	go func() {
-		r, err := wsFunc()
+		r, err := ws.Connect()
 		if err != nil {
 			t.Error(err)
 			return

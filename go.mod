@@ -16,6 +16,7 @@ require (
 	github.com/golangplus/testing v0.0.0-20180327235837-af21d9c3145e // indirect
 	github.com/hashicorp/yamux v0.0.0-20190923154419-df201c70410d // indirect
 	github.com/inconshreveable/muxado v0.0.0-20160802230925-fc182d90f26e // indirect
+	github.com/keybase/go-ps v0.0.0-20190827175125-91aafc93ba19
 	github.com/lucas-clemente/quic-go v0.13.1 // indirect
 	github.com/lxn/walk v0.0.0-20191128110447-55ccb3a9f5c1 // indirect
 	github.com/lxn/win v0.0.0-20191128105842-2da648fda5b4 // indirect
