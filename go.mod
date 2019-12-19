@@ -23,6 +23,7 @@ require (
 	github.com/manifold/qtalk v0.0.0-20191117202844-f1ce2a287d67
 	github.com/mitchellh/hashstructure v1.0.0
 	github.com/mitchellh/mapstructure v1.1.2
+	github.com/nickvanw/ircx/v2 v2.0.0
 	github.com/oklog/ulid v1.3.1 // indirect
 	github.com/progrium/prototypes v0.0.0-20190807232325-d9b2b4ba3a4f
 	github.com/rjeczalik/notify v0.9.2
@@ -42,6 +43,7 @@ require (
 	golang.org/x/sys v0.0.0-20191210023423-ac6580df4449 // indirect
 	golang.org/x/tools v0.0.0-20191205215504-7b8c8591a921 // indirect
 	google.golang.org/appengine v1.6.5 // indirect
+	gopkg.in/sorcix/irc.v2 v2.0.0-20190306112350-8d7a73540b90
 	gopkg.in/vmihailenco/msgpack.v2 v2.9.1 // indirect
 )
 

@@ -14,6 +14,7 @@ import (
 	_ "github.com/manifold/tractor/com/file"
 	_ "github.com/manifold/tractor/com/http"
 	_ "github.com/manifold/tractor/com/net"
+	_ "github.com/manifold/tractor/com/net/irc"
 	_ "github.com/manifold/tractor/com/time"
 )
 

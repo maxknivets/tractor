@@ -132,10 +132,8 @@ func (w *Workspace) StartDaemon() error {
 	if w.daemon != nil {
 		return errors.New("daemon already started")
 	}
-	if _, err := os.Stat(w.BinPath); os.IsNotExist(err) {
-		if err := w.Recompile(); err != nil {
-			return err
-		}
+	if err := w.Recompile(); err != nil {
+		return err
 	}
 	w.daemon = subcmd.New(w.daemonCmd[0], w.daemonCmd[1:]...)
 	w.daemon.Setup = func(cmd *exec.Cmd) error {
