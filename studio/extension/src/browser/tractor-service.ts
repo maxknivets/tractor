@@ -18,14 +18,13 @@ import { injectable, inject } from 'inversify';
 import URI from '@theia/core/lib/common/uri';
 import { Event, Emitter, DisposableCollection } from '@theia/core';
 import { WidgetFactory } from '@theia/core/lib/browser';
-import { TractorTreeWidget, TractorTreeWidgetFactory, OutlineSymbolInformationNode } from './tractor-tree-widget';
+import { TractorTreeWidget, ObjectNode, TractorTreeWidgetFactory } from './tractor-tree-widget';
 import { Widget } from '@phosphor/widgets';
 import { WorkspaceService } from '@theia/workspace/lib/browser';
 import { ILogger, MessageService } from '@theia/core';
 
 import * as qmux from './qmux';
 import * as qrpc from 'qrpc';
-import { QuickPickService } from '@theia/core/lib/common/quick-pick-service';
 
 const RetryInterval = 500;
 
@@ -52,23 +51,23 @@ export class TractorService implements WidgetFactory {
     protected api: qrpc.API;
 
     protected widget?: TractorTreeWidget;
-    protected readonly onDidChangeOutlineEmitter = new Emitter<OutlineSymbolInformationNode[]>();
+    protected readonly onDidChangeEmitter = new Emitter<ObjectNode[]>();
     protected readonly onDidChangeOpenStateEmitter = new Emitter<boolean>();
-    protected readonly onDidSelectEmitter = new Emitter<OutlineSymbolInformationNode>();
-    protected readonly onDidOpenEmitter = new Emitter<OutlineSymbolInformationNode>();
+    protected readonly onDidSelectEmitter = new Emitter<ObjectNode>();
+    protected readonly onDidOpenEmitter = new Emitter<ObjectNode>();
 
     constructor(@inject(TractorTreeWidgetFactory) protected factory: TractorTreeWidgetFactory) { }
 
-    get onDidSelect(): Event<OutlineSymbolInformationNode> {
+    get onDidSelect(): Event<ObjectNode> {
         return this.onDidSelectEmitter.event;
     }
 
-    get onDidOpen(): Event<OutlineSymbolInformationNode> {
+    get onDidOpen(): Event<ObjectNode> {
         return this.onDidOpenEmitter.event;
     }
 
-    get onDidChangeOutline(): Event<OutlineSymbolInformationNode[]> {
-        return this.onDidChangeOutlineEmitter.event;
+    get onDidChange(): Event<ObjectNode[]> {
+        return this.onDidChangeEmitter.event;
     }
 
     get onDidChangeOpenState(): Event<boolean> {
@@ -115,6 +114,7 @@ export class TractorService implements WidgetFactory {
                 //this.messages.info("DEBUG: got data");
                 if (this.widget) {
                     this.widget.setData(data);
+                    this.onDidChangeEmitter.fire(this.widget.rootObjects());
                 }
                 r.return();
 			}
@@ -145,24 +145,12 @@ export class TractorService implements WidgetFactory {
     }
     
 
-    /**
-     * Publish the collection of outline view symbols.
-     * - Publishing includes setting the `OutlineViewWidget` tree with symbol information.
-     * @param roots the list of outline symbol information nodes.
-     */
-    publish(roots: OutlineSymbolInformationNode[]): void {
-        if (this.widget) {
-            this.widget.setOutlineTree(roots);
-            this.onDidChangeOutlineEmitter.fire(roots);
-        }
-    }
-
     createWidget(): Promise<Widget> {
         this.widget = this.factory();
         const disposables = new DisposableCollection();
         disposables.push(this.widget.onDidChangeOpenStateEmitter.event(open => this.onDidChangeOpenStateEmitter.fire(open)));
-        disposables.push(this.widget.model.onOpenNode(node => this.onDidOpenEmitter.fire(node as OutlineSymbolInformationNode)));
-        disposables.push(this.widget.model.onSelectionChanged(selection => this.onDidSelectEmitter.fire(selection[0] as OutlineSymbolInformationNode)));
+        disposables.push(this.widget.model.onOpenNode(node => this.onDidOpenEmitter.fire(node as ObjectNode)));
+        disposables.push(this.widget.model.onSelectionChanged(selection => this.onDidSelectEmitter.fire(selection[0] as ObjectNode)));
         this.widget.disposed.connect(() => {
             this.widget = undefined;
             disposables.dispose();

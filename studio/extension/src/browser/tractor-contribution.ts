@@ -11,7 +11,7 @@ import { CompositeTreeNode } from '@theia/core/lib/browser/tree';
 import { Widget } from '@theia/core/lib/browser/widgets';
 import { WidgetManager } from '@theia/core/lib/browser';
 import { MessageService, ILogger } from '@theia/core';
-import { SingleTextInputDialog, ConfirmDialog } from '@theia/core/lib/browser/dialogs';
+import { SingleTextInputDialog } from '@theia/core/lib/browser/dialogs';
 
 export namespace TractorCommands {
     export const TOGGLE: Command = {
@@ -92,7 +92,7 @@ export class TractorContribution extends AbstractViewContribution<TractorTreeWid
     }
 
     onStart(app: FrontendApplication): void {
-        this.tractor.connectAgent(this.messageService);
+        this.tractor.connectAgent();
         this.widgets.onDidCreateWidget((e) => {
             if (e.widget.constructor.name === "WebviewWidget") {
                 e.widget.title.iconClass = "fa fas fa-clipboard-list";
@@ -132,7 +132,7 @@ export class TractorContribution extends AbstractViewContribution<TractorTreeWid
         });
         commands.registerCommand(TractorCommands.DELETE_NODE, {
             execute: () => {
-                let node = this.shell.currentWidget.model.selectedNodes[0];
+                let node = (this.shell.currentWidget as TractorTreeWidget).model.selectedNodes[0];
                 if (node) {
                     this.tractor.deleteNode(node.id);
                 }
@@ -142,7 +142,7 @@ export class TractorContribution extends AbstractViewContribution<TractorTreeWid
         });
         commands.registerCommand(TractorCommands.ADD_NODE, {
             execute: () => {
-                let node = this.shell.currentWidget.model.selectedNodes[0];
+                let node = (this.shell.currentWidget as TractorTreeWidget).model.selectedNodes[0];
                 if (node) {
                     this.tractor.addNode("Empty Object", node.id);
                 }
@@ -150,7 +150,7 @@ export class TractorContribution extends AbstractViewContribution<TractorTreeWid
         });
         commands.registerCommand(TractorCommands.RENAME_NODE, {
             execute: () => {
-                let node = this.shell.currentWidget.model.selectedNodes[0];
+                let node = (this.shell.currentWidget as TractorTreeWidget).model.selectedNodes[0];
                 if (node) {
                     const initialValue = node.name;
                     const titleStr = `Rename ${node.name}`;

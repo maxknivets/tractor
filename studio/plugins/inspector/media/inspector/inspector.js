@@ -3,7 +3,7 @@ const { Column, Control, Checkbox, Input, Message, Delete, Box, Heading, Content
 const RetryInterval = 500;
 let componentPaths = {};
 
-function scheduleRetry(fn: any) {
+function scheduleRetry(fn) {
 	setTimeout(fn, RetryInterval);
 }
 

@@ -102,7 +102,10 @@ class InspectorPanel {
                             return;
                         }
                         if (message.params.Component === "Delegate") {
-                            theia.window.showTextDocument(theia.Uri.file(path.join(theia.workspace.workspaceFolders[0].uri.path, 'delegates', message.params.ID, 'delegate.go')));
+							let folders = theia.workspace.workspaceFolders;
+							if (folders) {
+								theia.window.showTextDocument(theia.Uri.file(path.join(folders[0].uri.path, 'delegates', message.params.ID, 'delegate.go')));
+							}
                         } else {
                             theia.window.showTextDocument(theia.Uri.file(message.params.Filepath));
                         }

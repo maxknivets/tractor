@@ -15,7 +15,7 @@
  ********************************************************************************/
 
 import { injectable, inject } from 'inversify';
-import { CompositeTreeNode, SelectableTreeNode, TreeModelImpl, TreeExpansionService, ExpandableTreeNode } from '@theia/core/lib/browser';
+import { CompositeTreeNode, TreeModelImpl, TreeExpansionService, ExpandableTreeNode } from '@theia/core/lib/browser';
 import { ILogger } from '@theia/core';
 
 @injectable()

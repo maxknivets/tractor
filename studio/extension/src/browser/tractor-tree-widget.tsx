@@ -23,8 +23,7 @@ import {
     TreeProps,
     ContextMenuRenderer,
     TreeModel,
-    ExpandableTreeNode,
-    TabBarRendererFactory
+    ExpandableTreeNode
 } from '@theia/core/lib/browser';
 import { TractorTreeModel } from './tractor-tree-model';
 import { Message } from '@phosphor/messaging';
@@ -99,11 +98,13 @@ export class TractorTreeWidget extends TreeWidget {
         } as CompositeTreeNode;
     }
 
+    public rootObjects(): ObjectNode[] {
+        return (this.model.root as CompositeTreeNode).children as ObjectNode[];
+    }
 
     nodesFromData(data: any, parent: ObjectNode|undefined): TreeNode[] {
         let paths = [];
         if (parent) {
-            let n = data.nodes[parent.id];
             paths = data.hierarchy.filter((p) => {
                 let basePath = parent.absPath+"/";
                 if (p.startsWith(basePath)) {
@@ -140,26 +141,6 @@ export class TractorTreeWidget extends TreeWidget {
         });
     }
 
-
-    /**
-     * Reconcile the outline tree state, gathering all available nodes.
-     * @param nodes the list of `TreeNode`.
-     *
-     * @returns the list of tree nodes.
-     */
-    protected reconcileTreeState(nodes: TreeNode[]): TreeNode[] {
-        nodes.forEach(node => {
-            if (OutlineSymbolInformationNode.is(node)) {
-                const treeNode = this.model.getNode(node.id);
-                if (treeNode && OutlineSymbolInformationNode.is(treeNode)) {
-                    treeNode.expanded = node.expanded;
-                    treeNode.selected = node.selected;
-                }
-                this.reconcileTreeState(Array.from(node.children));
-            }
-        });
-        return nodes;
-    }
 
     protected onAfterHide(msg: Message): void {
         super.onAfterHide(msg);
