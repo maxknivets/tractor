@@ -214,7 +214,7 @@ func (w *Workspace) Serve(ctx context.Context) {
 				continue
 			}
 
-			dirCreated := false
+			//dirCreated := false
 			if event.Op&fsnotify.Create == fsnotify.Create {
 				fi, err := os.Stat(event.Name)
 				if err != nil {
@@ -222,13 +222,15 @@ func (w *Workspace) Serve(ctx context.Context) {
 				}
 				if fi.IsDir() {
 					watcher.Add(event.Name)
-					dirCreated = true
+					//dirCreated = true
 				}
 			}
 
-			if filepath.Ext(event.Name) != ".go" && !dirCreated {
+			if filepath.Ext(event.Name) != ".go" { //&& !dirCreated
 				continue
 			}
+
+			info(w.log, "detected change:", event.Name)
 
 			debounce(func() {
 				info(w.log, "recompiling workspace:", w.Name)

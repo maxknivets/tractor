@@ -1,0 +1,32 @@
+{
+  "name": "tractor",
+  "keywords": [
+    "theia-extension"
+  ],
+  "private": true,
+  "version": "0.0.0",
+  "files": [
+    "lib",
+    "src"
+  ],
+  "dependencies": {
+    "@theia/core": "^0.14.0",
+    "express-ws": "^4.0.0"
+  },
+  "devDependencies": {
+    "rimraf": "latest",
+    "typescript": "latest"
+  },
+  "scripts": {
+    "prepare": "yarn run clean && yarn run build",
+    "clean": "rimraf lib",
+    "build": "tsc",
+    "watch": "tsc -w"
+  },
+  "theiaExtensions": [
+    {
+      "frontend": "lib/browser/tractor-frontend-module",
+      "backend": "lib/node/backend-module"
+    }
+  ]
+}

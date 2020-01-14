@@ -8,13 +8,16 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync"
 	"syscall"
+	"time"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/manifold/tractor/pkg/agent"
 	"github.com/manifold/tractor/pkg/agent/console"
 	"github.com/manifold/tractor/pkg/misc/daemon"
 	"github.com/manifold/tractor/pkg/misc/logging"
+	"github.com/manifold/tractor/pkg/misc/subcmd"
 )
 
 type Service struct {
@@ -55,6 +58,42 @@ func (s *Service) InitializeDaemon() (err error) {
 		}
 	}
 
+	for _, path := range collectDirs("./studio/extension/src", []string{"node_modules", "out"}) {
+		err = s.watcher.Add(path)
+		if err != nil {
+			return err
+		}
+	}
+
+	for _, path := range collectDirs("./studio/plugins", []string{"node_modules", "out"}) {
+		err = s.watcher.Add(path)
+		if err != nil {
+			return err
+		}
+	}
+
+	shellBuild := &cmdService{
+		subcmd.New("yarn", "run", "theia", "build", "--watch", "--mode", "development"),
+	}
+	shellBuild.Setup = func(cmd *exec.Cmd) error {
+		cmd.Dir = "./studio/shell"
+		cmd.Stdout = s.output
+		cmd.Stderr = s.output
+		return nil
+	}
+	s.Daemon.AddServices(shellBuild)
+
+	shellRun := &cmdService{
+		subcmd.New("yarn", "run", "theia", "start", "--log-level", "warn", "--plugins", "local-dir:../plugins/"),
+	}
+	shellRun.Setup = func(cmd *exec.Cmd) error {
+		cmd.Dir = "./studio/shell"
+		cmd.Stdout = s.output
+		cmd.Stderr = s.output
+		return nil
+	}
+	s.Daemon.AddServices(shellRun)
+
 	return err
 }
 
@@ -63,6 +102,7 @@ func (s *Service) TerminateDaemon() error {
 }
 
 func (s *Service) Serve(ctx context.Context) {
+	debounce := Debounce(20 * time.Millisecond)
 	for {
 		select {
 		case <-ctx.Done():
@@ -75,15 +115,27 @@ func (s *Service) Serve(ctx context.Context) {
 				continue
 			}
 
-			if filepath.Ext(event.Name) == ".ts" {
-				s.Logger.Debug("ts file changed, compiling...")
-				go func() {
-					cmd := exec.Command("tsc", "-p", "./extension")
-					cmd.Stdout = s.output
-					cmd.Stderr = s.output
-					cmd.Run()
-					s.Logger.Debug("finished")
-				}()
+			if filepath.Ext(event.Name) == ".ts" || filepath.Ext(event.Name) == ".tsx" {
+				debounce(func() {
+					s.Logger.Debug("ts file changed, compiling...")
+					go func() {
+						// theia plugin
+						cmd := exec.Command("tsc", "-p", "./studio/plugins/inspector")
+						cmd.Stdout = s.output
+						cmd.Stderr = s.output
+						cmd.Run()
+						s.Logger.Debug("finished")
+					}()
+					go func() {
+						// theia extension
+						cmd := exec.Command("tsc", "-p", "./studio/extension")
+						cmd.Stdout = s.output
+						cmd.Stderr = s.output
+						cmd.Run()
+						s.Logger.Debug("finished")
+					}()
+				})
+
 			}
 
 			if filepath.Ext(event.Name) == ".go" {
@@ -209,4 +261,46 @@ func checksumMatch(bin1, bin2 string) bool {
 	go checksum(bin1, chk1)
 	go checksum(bin2, chk2)
 	return bytes.Equal(<-chk1, <-chk2)
+}
+
+// New returns a debounced function that takes another functions as its argument.
+// This function will be called when the debounced function stops being called
+// for the given duration.
+// The debounced function can be invoked with different functions, if needed,
+// the last one will win.
+func Debounce(after time.Duration) func(f func()) {
+	d := &debouncer{after: after}
+
+	return func(f func()) {
+		d.add(f)
+	}
+}
+
+type debouncer struct {
+	mu    sync.Mutex
+	after time.Duration
+	timer *time.Timer
+}
+
+func (d *debouncer) add(f func()) {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	if d.timer != nil {
+		d.timer.Stop()
+	}
+	d.timer = time.AfterFunc(d.after, f)
+}
+
+type cmdService struct {
+	*subcmd.Subcmd
+}
+
+func (s *cmdService) Serve(ctx context.Context) {
+	s.Start()
+	s.Wait()
+}
+
+func (s *cmdService) TerminateDaemon() error {
+	return s.Stop()
 }
