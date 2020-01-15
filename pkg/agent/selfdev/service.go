@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -118,22 +119,28 @@ func (s *Service) Serve(ctx context.Context) {
 			if filepath.Ext(event.Name) == ".ts" || filepath.Ext(event.Name) == ".tsx" {
 				debounce(func() {
 					s.Logger.Debug("ts file changed, compiling...")
-					go func() {
-						// theia plugin
-						cmd := exec.Command("tsc", "-p", "./studio/plugins/inspector")
-						cmd.Stdout = s.output
-						cmd.Stderr = s.output
-						cmd.Run()
-						s.Logger.Debug("finished")
-					}()
-					go func() {
-						// theia extension
-						cmd := exec.Command("tsc", "-p", "./studio/extension")
-						cmd.Stdout = s.output
-						cmd.Stderr = s.output
-						cmd.Run()
-						s.Logger.Debug("finished")
-					}()
+					for _, plugin := range []string{"inspector", "moduleview", "tableview"} {
+						if strings.Contains(event.Name, "/studio/plugins/"+plugin) {
+							go func() {
+								// theia plugin
+								cmd := exec.Command("tsc", "-p", "./studio/plugins/"+plugin)
+								cmd.Stdout = s.output
+								cmd.Stderr = s.output
+								cmd.Run()
+								s.Logger.Debug("finished")
+							}()
+						}
+					}
+					if strings.Contains(event.Name, "/studio/extension/") {
+						go func() {
+							// theia extension
+							cmd := exec.Command("tsc", "-p", "./studio/extension")
+							cmd.Stdout = s.output
+							cmd.Stderr = s.output
+							cmd.Run()
+							s.Logger.Debug("finished")
+						}()
+					}
 				})
 
 			}

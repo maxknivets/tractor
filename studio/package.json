@@ -15,6 +15,6 @@
       
     },
     "workspaces": [
-      "extension", "shell"
+      "extension", "shell", "plugins/moduleview", "plugins/tableview", "plugins/inspector"
     ]
   }

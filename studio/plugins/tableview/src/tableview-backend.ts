@@ -3,16 +3,16 @@ import * as theia from '@theia/plugin';
 
 export function start(context: theia.PluginContext) {
     context.subscriptions.push(
-        theia.commands.registerCommand({ id: 'inspector.show', label: "Inspector: Show" }, () => {
-            InspectorPanel.createOrShow(context.extensionPath);
+        theia.commands.registerCommand({ id: 'tableview.show', label: "Tableview: Show" }, () => {
+            TableViewPanel.createOrShow(context.extensionPath);
         })
     );
 
     if (theia.window.registerWebviewPanelSerializer) {
         // Make sure we register a serializer in activation event
-        theia.window.registerWebviewPanelSerializer(InspectorPanel.viewType, {
+        theia.window.registerWebviewPanelSerializer(TableViewPanel.viewType, {
             async deserializeWebviewPanel(webviewPanel: theia.WebviewPanel, state: any) {
-                InspectorPanel.revive(webviewPanel, context.extensionPath);
+                TableViewPanel.revive(webviewPanel, context.extensionPath);
             }
         });
     }
@@ -25,13 +25,13 @@ export function stop() {
 /**
  * Manages inspector webview panels
  */
-class InspectorPanel {
+class TableViewPanel {
 	/**
 	 * Track the currently panel. Only allow a single panel to exist at a time.
 	 */
-    public static currentPanel: InspectorPanel | undefined;
+    public static currentPanel: TableViewPanel | undefined;
 
-    public static readonly viewType = 'inspector';
+    public static readonly viewType = 'tableview';
 
     private readonly _panel: theia.WebviewPanel;
     private readonly _extensionPath: string;
@@ -43,15 +43,15 @@ class InspectorPanel {
             : undefined;
 
         // If we already have a panel, show it.
-        if (InspectorPanel.currentPanel) {
-            InspectorPanel.currentPanel._panel.reveal(column);
+        if (TableViewPanel.currentPanel) {
+            TableViewPanel.currentPanel._panel.reveal(column);
             return;
         }
 
         // Otherwise, create a new panel.
         const panel = theia.window.createWebviewPanel(
-            InspectorPanel.viewType,
-            'Inspector',
+            TableViewPanel.viewType,
+            'Tableview',
             column || theia.ViewColumn.One,
             {
                 // Enable javascript in the webview
@@ -62,11 +62,11 @@ class InspectorPanel {
             }
         );
 
-        InspectorPanel.currentPanel = new InspectorPanel(panel, extensionPath);
+        TableViewPanel.currentPanel = new TableViewPanel(panel, extensionPath);
     }
 
     public static revive(panel: theia.WebviewPanel, extensionPath: string) {
-        InspectorPanel.currentPanel = new InspectorPanel(panel, extensionPath);
+        TableViewPanel.currentPanel = new TableViewPanel(panel, extensionPath);
     }
 
     private constructor(panel: theia.WebviewPanel, extensionPath: string) {
@@ -121,7 +121,7 @@ class InspectorPanel {
 
 
     public dispose() {
-        InspectorPanel.currentPanel = undefined;
+        TableViewPanel.currentPanel = undefined;
 
         // Clean up our resources
         this._panel.dispose();
@@ -139,10 +139,10 @@ class InspectorPanel {
         const mediaPath = path.join(this._extensionPath, "media");
         const webviewUri = (filepath: string) => webview.asWebviewUri(theia.Uri.file(path.join(mediaPath, filepath)));
         const nonce = getNonce();
-        let rootPath = "";
-        if (theia.workspace.workspaceFolders) {
-            rootPath = theia.workspace.workspaceFolders[0].uri.path;
-        }
+        // let rootPath = "";
+        // if (theia.workspace.workspaceFolders) {
+        //     rootPath = theia.workspace.workspaceFolders[0].uri.path;
+        // }
         return `<!DOCTYPE html>
         <html lang="en">
           <head>
@@ -152,31 +152,44 @@ class InspectorPanel {
             and only allow scripts that have a specific nonce.
             -->
             <!--meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} https:; script-src 'nonce-${nonce}';"-->
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <link rel="stylesheet" SameSite=None href="https://unpkg.com/rbx@2.2.0/index.css" />
-            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bulma/0.7.5/css/bulma.min.css" />
-            <link rel="stylesheet" href="${webviewUri('fontawesome/css/all.min.css')}" />  
-            <link rel="stylesheet" href="${webviewUri('inspector/inspector.css')}" />  
-            <script nonce="${nonce}" src="https://unpkg.com/babel-standalone@6.15.0/babel.min.js"></script>
-            <script nonce="${nonce}" src="https://unpkg.com/react@16/umd/react.development.js"></script>
-            <script nonce="${nonce}" src="https://unpkg.com/react-dom@16/umd/react-dom.development.js"></script>
-            <script nonce="${nonce}" src="https://unpkg.com/prop-types@15.6/prop-types.min.js"></script>
-            <script nonce="${nonce}" src="https://unpkg.com/classnames@2.2.6/index.js"></script>
-            <script nonce="${nonce}" src="https://unpkg.com/rbx@2.2.0/rbx.umd.js"></script>
-            <script nonce="${nonce}" src="${webviewUri('inspector/inspector.js')}" type="text/babel"></script>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0">
+			<link rel="stylesheet" href="https://unpkg.com/ag-grid-community/dist/styles/ag-grid.css">
+    		<link rel="stylesheet" href="https://unpkg.com/ag-grid-community/dist/styles/ag-theme-balham.css">
+            <script nonce="${nonce}" src="https://unpkg.com/ag-grid-community/dist/ag-grid-community.min.noStyle.js"></script>
             <script nonce="${nonce}" src="${webviewUri('qtalk/qmux.js')}"></script>
             <script nonce="${nonce}" src="${webviewUri('qtalk/qrpc.js')}"></script>
           </head>
           <body>
-            <div id="app"></div>
-            <script type="text/babel">
-              window.workspacePath = "${rootPath}";
-              window.functionIcon = "${webviewUri('inspector/function-icon.png')}";
-              window.rpc = undefined;
-              window.theia = acquireTheiaApi();
-        
-              ReactDOM.render(<InspectorContainer />, document.getElementById('app'));
-            </script>
+			<div id="myGrid" style="height: 600px;width:500px;" class="ag-theme-balham"></div>
+
+			<script type="text/javascript" charset="utf-8">
+				// specify the columns
+				var columnDefs = [
+				{headerName: "Make", field: "make"},
+				{headerName: "Model", field: "model"},
+				{headerName: "Price", field: "price"}
+				];
+			
+				// specify the data
+				var rowData = [
+				{make: "Toyota", model: "Celica", price: 35000},
+				{make: "Ford", model: "Mondeo", price: 32000},
+				{make: "Porsche", model: "Boxter", price: 72000}
+				];
+			
+				// let the grid know which columns and what data to use
+				var gridOptions = {
+				columnDefs: columnDefs,
+				rowData: rowData
+				};
+			
+			// lookup the container we want the Grid to use
+			var eGridDiv = document.querySelector('#myGrid');
+			
+			// create the grid passing in the div to use together with the columns & data we want to use
+			new agGrid.Grid(eGridDiv, gridOptions);
+			
+			</script>
           </body>
         </html>`
     }

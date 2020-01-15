@@ -1,0 +1,48 @@
+html {
+    background-color: var(--vscode-sideBar-background) !important;
+    font-size: smaller;
+    margin-left: 5px;
+    margin-right: 5px;
+    min-width: 0px;
+}
+body {
+  color: var(--vscode-foreground) !important;
+  background-color: var(--vscode-sideBar-background) !important;
+}
+.list {
+  background-color: #000 !important; 
+}
+.list-item {
+  color: var(--vscode-foreground) !important;
+  background-color: var(--theia-editor-background) !important;
+}
+.list-item:not(:last-child) {
+  border-bottom: 1px solid var(--vscode-editorGroup-border) !important;
+
+}
+.control .image img {
+  filter: invert(0.8);
+}
+.button {
+  background-color: var(--vscode-button-background) !important;
+  color: var(--vscode-button-foreground) !important;
+  border-color: initial !important;
+  border-width: 0;
+}
+.button:hover {
+  border-color: initial !important;
+  border-width: 0;
+}
+.input, .select select, .textarea {
+  background-color: var(--vscode-input-background) !important;
+  color: var(--vscode-input-foreground) !important;
+  border: 0px;
+}
+.dropdown-content {
+  background-color: var(--vscode-dropdown-background) !important;
+  color: var(--vscode-foreground) !important;
+  border: 1px solid var(--vscode-editorGroup-border) !important;
+}
+.dropdown-item {
+  color: var(--vscode-foreground) !important;
+}

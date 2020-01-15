@@ -3,16 +3,16 @@ import * as theia from '@theia/plugin';
 
 export function start(context: theia.PluginContext) {
     context.subscriptions.push(
-        theia.commands.registerCommand({ id: 'inspector.show', label: "Inspector: Show" }, () => {
-            InspectorPanel.createOrShow(context.extensionPath);
+        theia.commands.registerCommand({ id: 'moduleview.show', label: "Moduleview: Show" }, () => {
+            ModuleViewPanel.createOrShow(context.extensionPath);
         })
     );
 
     if (theia.window.registerWebviewPanelSerializer) {
         // Make sure we register a serializer in activation event
-        theia.window.registerWebviewPanelSerializer(InspectorPanel.viewType, {
+        theia.window.registerWebviewPanelSerializer(ModuleViewPanel.viewType, {
             async deserializeWebviewPanel(webviewPanel: theia.WebviewPanel, state: any) {
-                InspectorPanel.revive(webviewPanel, context.extensionPath);
+                ModuleViewPanel.revive(webviewPanel, context.extensionPath);
             }
         });
     }
@@ -25,13 +25,13 @@ export function stop() {
 /**
  * Manages inspector webview panels
  */
-class InspectorPanel {
+class ModuleViewPanel {
 	/**
 	 * Track the currently panel. Only allow a single panel to exist at a time.
 	 */
-    public static currentPanel: InspectorPanel | undefined;
+    public static currentPanel: ModuleViewPanel | undefined;
 
-    public static readonly viewType = 'inspector';
+    public static readonly viewType = 'moduleview';
 
     private readonly _panel: theia.WebviewPanel;
     private readonly _extensionPath: string;
@@ -43,15 +43,15 @@ class InspectorPanel {
             : undefined;
 
         // If we already have a panel, show it.
-        if (InspectorPanel.currentPanel) {
-            InspectorPanel.currentPanel._panel.reveal(column);
+        if (ModuleViewPanel.currentPanel) {
+            ModuleViewPanel.currentPanel._panel.reveal(column);
             return;
         }
 
         // Otherwise, create a new panel.
         const panel = theia.window.createWebviewPanel(
-            InspectorPanel.viewType,
-            'Inspector',
+            ModuleViewPanel.viewType,
+            'Moduleview',
             column || theia.ViewColumn.One,
             {
                 // Enable javascript in the webview
@@ -62,11 +62,11 @@ class InspectorPanel {
             }
         );
 
-        InspectorPanel.currentPanel = new InspectorPanel(panel, extensionPath);
+        ModuleViewPanel.currentPanel = new ModuleViewPanel(panel, extensionPath);
     }
 
     public static revive(panel: theia.WebviewPanel, extensionPath: string) {
-        InspectorPanel.currentPanel = new InspectorPanel(panel, extensionPath);
+        ModuleViewPanel.currentPanel = new ModuleViewPanel(panel, extensionPath);
     }
 
     private constructor(panel: theia.WebviewPanel, extensionPath: string) {
@@ -121,7 +121,7 @@ class InspectorPanel {
 
 
     public dispose() {
-        InspectorPanel.currentPanel = undefined;
+        ModuleViewPanel.currentPanel = undefined;
 
         // Clean up our resources
         this._panel.dispose();

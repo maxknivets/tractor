@@ -1,5 +1,5 @@
 {
-      "name": "inspector",
+      "name": "tableview",
       "publisher": "theia",
       "keywords": [
         "theia-plugin"
@@ -34,7 +34,7 @@
       "theiaPlugin": {
           
           
-            "backend": "lib/inspector-backend.js"
+            "backend": "lib/tableview-backend.js"
           
       }
 }
