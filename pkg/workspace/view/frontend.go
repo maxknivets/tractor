@@ -56,6 +56,7 @@ type State struct {
 	Hierarchy      []string          `msgpack:"hierarchy"`
 	Nodes          map[string]Node   `msgpack:"nodes"`
 	NodePaths      map[string]string `msgpack:"nodePaths"`
+	SelectedNode   string            `msgpack:"selectedNode"`
 }
 
 func exportElem(v reflected.Value, path string, idx int, n *manifold.Node) (Field, bool) {

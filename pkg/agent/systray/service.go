@@ -75,13 +75,13 @@ func (s *Service) Serve(ctx context.Context) {
 				Icon:    ws.Status().String(),
 				Enabled: true,
 			})
-			ws.OnStatusChange(func(ws *agent.Workspace) {
+			ws.Observe(func(ws *agent.Workspace, status agent.WorkspaceStatus) {
 				s.send(Message{
 					Type: ItemUpdate,
 					Item: &MenuItem{
 						Title:   ws.Name,
 						Tooltip: "Open workspace",
-						Icon:    ws.Status().String(),
+						Icon:    status.String(),
 						Enabled: true,
 					},
 					Idx: idx,

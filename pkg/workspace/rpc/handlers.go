@@ -101,6 +101,20 @@ func (s *Service) AddDelegate() func(qrpc.Responder, *qrpc.Call) {
 	}
 }
 
+func (s *Service) SelectNode() func(qrpc.Responder, *qrpc.Call) {
+	return func(r qrpc.Responder, c *qrpc.Call) {
+		var id string
+		err := c.Decode(&id)
+		if err != nil {
+			r.Return(err)
+			return
+		}
+		s.viewState.SelectedNode = id
+		s.updateView()
+		r.Return(nil)
+	}
+}
+
 func (s *Service) UpdateNode() func(qrpc.Responder, *qrpc.Call) {
 	return func(r qrpc.Responder, c *qrpc.Call) {
 		var params NodeParams

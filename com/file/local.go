@@ -32,17 +32,18 @@ func (c *Local) String() string {
 	return string(d)
 }
 
-func (c *Local) Initialize() {
+func (c *Local) Initialize() error {
 	c.filepath = filepath.Join(c.node.Dir, "localFile")
 	_, err := os.Stat(c.filepath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			_, err = os.Create(c.filepath)
 			if err != nil {
-				log.Fatal(err)
+				return err
 			}
 		}
 	}
+	return nil
 }
 
 func (c *Local) InspectorButtons() []frontend.Button {

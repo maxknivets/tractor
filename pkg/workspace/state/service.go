@@ -25,7 +25,7 @@ func (s *Service) InitializeDaemon() (err error) {
 	}
 
 	// TODO: deprecated, remove
-	manifold.Walk(manifold.Root, func(n *manifold.Node) {
+	manifold.Walk(s.Root, func(n *manifold.Node) {
 		for _, com := range n.Components {
 			if initializer, ok := com.Ref.(preInitializer); ok {
 				initializer.PreInitialize()
@@ -33,10 +33,12 @@ func (s *Service) InitializeDaemon() (err error) {
 		}
 	})
 
-	manifold.Walk(manifold.Root, func(n *manifold.Node) {
+	manifold.Walk(s.Root, func(n *manifold.Node) {
 		for _, com := range n.Components {
 			if initializer, ok := com.Ref.(initializer); ok {
-				initializer.Initialize()
+				if err := initializer.Initialize(); err != nil {
+					log.Print(err)
+				}
 			}
 		}
 	})
@@ -77,5 +79,5 @@ type preInitializer interface {
 }
 
 type initializer interface {
-	Initialize()
+	Initialize() error
 }

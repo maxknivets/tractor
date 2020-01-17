@@ -25,6 +25,7 @@ type Agent struct {
 	SocketPath           string // ~/.tractor/agent.sock
 	WorkspacesPath       string // ~/.tractor/workspaces
 	WorkspaceSocketsPath string // ~/.tractor/sockets
+	WorkspaceBinPath     string // ~/.tractor/bin
 	GoBin                string
 	DevMode              bool
 
@@ -65,6 +66,7 @@ func Open(path string, console *console.Service, devMode bool) (*Agent, error) {
 
 	a.SocketPath = filepath.Join(a.Path, "agent.sock")
 	a.WorkspacesPath = filepath.Join(a.Path, "workspaces")
+	a.WorkspaceBinPath = filepath.Join(a.Path, "bin")
 	a.WorkspaceSocketsPath = filepath.Join(a.Path, "sockets")
 	if a.Logger == nil {
 		a.Logger = &null.Logger{}
@@ -72,6 +74,7 @@ func Open(path string, console *console.Service, devMode bool) (*Agent, error) {
 
 	os.MkdirAll(a.WorkspacesPath, 0700)
 	os.MkdirAll(a.WorkspaceSocketsPath, 0700)
+	os.MkdirAll(a.WorkspaceBinPath, 0700)
 
 	return a, nil
 }
@@ -173,7 +176,7 @@ func (a *Agent) Workspaces() ([]*Workspace, error) {
 		n := entry.Name()
 		ws := a.workspaces[n]
 		if ws == nil {
-			ws, err = InitWorkspace(a, n)
+			ws, err = OpenWorkspace(a, n)
 			if err != nil {
 				return nil, err
 			}

@@ -58,6 +58,7 @@ func Run(services ...Service) error {
 	return d.Run(context.Background())
 }
 
+// AddServices appends Service and Terminators to daemon
 func (d *Daemon) AddServices(services ...Service) {
 	r, _ := registry.New(d)
 	for _, s := range d.Services {
@@ -66,6 +67,9 @@ func (d *Daemon) AddServices(services ...Service) {
 	for _, s := range services {
 		r.Register(s)
 		d.Services = append(d.Services, s)
+		if t, ok := s.(Terminator); ok {
+			d.Terminators = append(d.Terminators, t)
+		}
 	}
 	r.SelfPopulate()
 }

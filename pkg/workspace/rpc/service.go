@@ -48,6 +48,7 @@ func (s *Service) InitializeDaemon() (err error) {
 
 	s.api = qrpc.NewAPI()
 	s.api.HandleFunc("reload", s.Reload())
+	s.api.HandleFunc("selectNode", s.SelectNode())
 	s.api.HandleFunc("removeComponent", s.RemoveComponent())
 	s.api.HandleFunc("selectProject", s.SelectProject())
 	s.api.HandleFunc("moveNode", s.MoveNode())

@@ -39,6 +39,10 @@ github.com/gliderlabs/com v0.1.1-0.20191023181249-02615ad445ac h1:G1vxllsXIcITB/
 github.com/gliderlabs/com v0.1.1-0.20191023181249-02615ad445ac/go.mod h1:TVWgtAmEZDWH5DjL7sjxErikcqtNnJOzm1i688t50J4=
 github.com/gliderlabs/stdcom v0.0.0-20171109193247-64a0d4e5fd86 h1:gT8ysi/nHA/BFDWU/h8hfdE/KOQYwcRyipB6vgPaXiE=
 github.com/gliderlabs/stdcom v0.0.0-20171109193247-64a0d4e5fd86/go.mod h1:mpnwARoUFOO8QK5GCzAV2q2plfF1ypY1eXJTgvSfNRA=
+github.com/go-kit/kit v0.8.0 h1:Wz+5lgoB0kkuqLEc6NVmwRknTKP6dTGbSqvhZtBI/j0=
+github.com/go-kit/kit v0.8.0/go.mod h1:xBxKIO96dXMWWy0MnWVtmwkA9/13aqxPnvrjFYMA2as=
+github.com/go-logfmt/logfmt v0.4.0 h1:MP4Eh7ZCb31lleYCFuwm0oe4/YGak+5l1vA2NOE80nA=
+github.com/go-logfmt/logfmt v0.4.0/go.mod h1:3RMwSq7FuexP4Kalkev3ejPJsZTpXXBr9+V4qmtdjCk=
 github.com/go-stack/stack v1.8.0 h1:5SgMzNM5HxrEjV0ww2lTmX6E2Izsfxas4+YHWRs3Lsk=
 github.com/go-stack/stack v1.8.0/go.mod h1:v0f6uXyyMGvRgIKkXu+yp6POWl0qKG85gN/melR3HDY=
 github.com/goji/httpauth v0.0.0-20160601135302-2da839ab0f4d h1:lBXNCxVENCipq4D1Is42JVOP4eQjlB8TQ6H69Yx5J9Q=
@@ -56,7 +60,10 @@ github.com/hpcloud/tail v1.0.0/go.mod h1:ab1qPbhIpdTxEkNHXyeSf5vhxWSCs/tWer42PpO
 github.com/inconshreveable/mousetrap v1.0.0/go.mod h1:PxqpIevigyE2G7u3NXJIT2ANytuPF1OarO4DADm73n8=
 github.com/inconshreveable/muxado v0.0.0-20160802230925-fc182d90f26e h1:cGxXDVmb2KPSmd+gyhtZpjoG5V1rrnkyHKfUzzocry8=
 github.com/inconshreveable/muxado v0.0.0-20160802230925-fc182d90f26e/go.mod h1:xyUGArB0mXxiyK0YKKcReixrakBqJtKtTLO9MmjTFT8=
+github.com/keybase/go-ps v0.0.0-20190827175125-91aafc93ba19 h1:WjT3fLi9n8YWh/Ih8Q1LHAPsTqGddPcHqscN+PJ3i68=
+github.com/keybase/go-ps v0.0.0-20190827175125-91aafc93ba19/go.mod h1:hY+WOq6m2FpbvyrI93sMaypsttvaIL5nhVR92dTMUcQ=
 github.com/kisielk/gotool v1.0.0/go.mod h1:XhKaO+MFFWcvkIS/tQcRk01m1F5IRFswLeQ+oQHNcck=
+github.com/kr/logfmt v0.0.0-20140226030751-b84e30acd515/go.mod h1:+0opPa2QZZtGFBFZlji/RkVcI2GknAs/DXo4wKdlNEc=
 github.com/kr/pretty v0.1.0/go.mod h1:dAy3ld7l9f0ibDNOQOHHMYYIIbhfbHSm3C4ZsoJORNo=
 github.com/kr/pty v1.1.1/go.mod h1:pFQYn66WHrOpPYNljwOMqo10TkYh1fy3cYio2l3bCsQ=
 github.com/kr/text v0.1.0/go.mod h1:4Jbv+DJW3UT/LiOwJeYQe1efqtUx/iVham/4vfdArNI=
@@ -79,6 +86,10 @@ github.com/mitchellh/hashstructure v1.0.0 h1:ZkRJX1CyOoTkar7p/mLS5TZU4nJ1Rn/F8u9
 github.com/mitchellh/hashstructure v1.0.0/go.mod h1:QjSHrPWS+BGUVBYkbTZWEnOh3G1DutKwClXU/ABz6AQ=
 github.com/mitchellh/mapstructure v1.1.2 h1:fmNYVwqnSfB9mZU6OS2O6GsXM+wcskZDuKQzvN1EDeE=
 github.com/mitchellh/mapstructure v1.1.2/go.mod h1:FVVH3fgwuzCH5S8UJGiWEs2h04kUh9fWfEaFds41c1Y=
+github.com/nickvanw/ircx v1.0.0 h1:iw2r2MkwsHg5Sowmj6nNGNqIjn+/V3Bhmewa4fy1/ok=
+github.com/nickvanw/ircx v1.0.0/go.mod h1:79xOvxzJU6FiTSdJ07mZAaGUo2W9YO2a7uyZ3G2ySqQ=
+github.com/nickvanw/ircx/v2 v2.0.0 h1:0vOFSCZFiHgUKlShuYCp1Bw86elezcnyZWUZ+Tpf2Aw=
+github.com/nickvanw/ircx/v2 v2.0.0/go.mod h1:wRLSLjRgOMBY9pFYv6PYYN5BiVA72CcHH7NjGm9y468=
 github.com/oklog/ulid v1.3.1 h1:EGfNDEx6MqHz8B3uNV6QAib1UR2Lm97sHi3ocA6ESJ4=
 github.com/oklog/ulid v1.3.1/go.mod h1:CirwcVhetQ6Lv90oh/F+FBtV6XMibvdAFo93nm5qn4U=
 github.com/onsi/ginkgo v1.6.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
@@ -176,6 +187,11 @@ gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8
 gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/errgo.v2 v2.1.0/go.mod h1:hNsd1EY+bozCKY1Ytp96fpM3vjJbqLJn88ws8XvfDNI=
 gopkg.in/fsnotify.v1 v1.4.7/go.mod h1:Tz8NjZHkW78fSQdbUxIjBTcgA1z1m8ZHf0WmKUhAMys=
+gopkg.in/sorcix/irc.v1 v1.1.4 h1:ejxu1vDyqn1d+I5WXzh93pMDq5NqdwBl3V/eN5c2we8=
+gopkg.in/sorcix/irc.v1 v1.1.4/go.mod h1:CHwY3DGuZpB6/OvF+fj4Jlvnj6QeS56EUTDoQkuAePM=
+gopkg.in/sorcix/irc.v2 v2.0.0-20180626144439-63eed78b082d/go.mod h1:9LLe1SvUK2YoWyIuJ+AParKHhu749G8oM+HTQQMZz9E=
+gopkg.in/sorcix/irc.v2 v2.0.0-20190306112350-8d7a73540b90 h1:ItuFAq9SlPhZvdIvsdgoE38i9aLLdDpBbFV9vTJhlp8=
+gopkg.in/sorcix/irc.v2 v2.0.0-20190306112350-8d7a73540b90/go.mod h1:PmJkUcwbuPi1FiZ9Rarr6wzVMvzkO7uWqH1jwrMkgW0=
 gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7/go.mod h1:dt/ZhP58zS4L8KSrWDmTeBkI65Dw0HsyUHuEVlX15mw=
 gopkg.in/vmihailenco/msgpack.v2 v2.9.1 h1:kb0VV7NuIojvRfzwslQeP3yArBqJHW9tOl4t38VS1jM=
 gopkg.in/vmihailenco/msgpack.v2 v2.9.1/go.mod h1:/3Dn1Npt9+MYyLpYYXjInO/5jvMLamn+AEGwNEOatn8=

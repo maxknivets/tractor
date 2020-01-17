@@ -36,56 +36,65 @@ func agentCallCmd() *cobra.Command {
 		Use:   "call",
 		Short: "Makes a QRPC call to the agent app",
 		Long:  "Makes a QRPC call to the agent app.",
+		Args:  cobra.ExactArgs(2),
+		Run:   runAgentCall(),
 	}
 
-	cmd.AddCommand(&cobra.Command{
-		Use:   "connect",
-		Short: "Connects to a running workspace",
-		Long:  "Connects to a workspace, starting it if it is not running. The output is streamed to STDOUT.",
-		Args:  cobra.ExactArgs(1),
-		Run:   runAgentCall("connect"),
-	})
-	cmd.AddCommand(&cobra.Command{
-		Use:   "start",
-		Short: "Restarts a workspace",
-		Long:  "Starts a workspace, restarting it if it is currently running. The output is streamed to STDOUT.",
-		Args:  cobra.ExactArgs(1),
-		Run:   runAgentCall("start"),
-	})
-	cmd.AddCommand(&cobra.Command{
-		Use:   "stop",
-		Short: "Stops a workspace",
-		Long:  "Stops a workspace.",
-		Args:  cobra.ExactArgs(1),
-		Run:   runAgentCall("stop"),
-	})
+	// cmd.AddCommand(&cobra.Command{
+	// 	Use:   "connect",
+	// 	Short: "Connects to a running workspace",
+	// 	Long:  "Connects to a workspace, starting it if it is not running. The output is streamed to STDOUT.",
+	// 	Args:  cobra.ExactArgs(1),
+	// 	Run:   runAgentCall("connect"),
+	// })
+	// cmd.AddCommand(&cobra.Command{
+	// 	Use:   "start",
+	// 	Short: "Restarts a workspace",
+	// 	Long:  "Starts a workspace, restarting it if it is currently running. The output is streamed to STDOUT.",
+	// 	Args:  cobra.ExactArgs(1),
+	// 	Run:   runAgentCall("start"),
+	// })
+	// cmd.AddCommand(&cobra.Command{
+	// 	Use:   "stop",
+	// 	Short: "Stops a workspace",
+	// 	Long:  "Stops a workspace.",
+	// 	Args:  cobra.ExactArgs(1),
+	// 	Run:   runAgentCall("stop"),
+	// })
 	return cmd
 }
 
-func runAgentCall(callmethod string) func(cmd *cobra.Command, args []string) {
+func runAgentCall() func(cmd *cobra.Command, args []string) {
 	return func(cmd *cobra.Command, args []string) {
-		wspath := args[0]
+		callmethod := args[0]
+		arg := args[1]
 		start := time.Now()
-		_, err := agentQRPCCall(os.Stdout, callmethod, wspath)
+		_, err := agentQRPCCall(os.Stdout, callmethod, arg)
 		if err != nil && err != io.EOF {
-			fmt.Printf("qrpc: %s [%s(%q) %s]\n", err, callmethod, wspath, time.Since(start))
+			fmt.Printf("qrpc: %s [%s(%q) %s]\n", err, callmethod, arg, time.Since(start))
 			os.Exit(1)
 			return
 		}
-		fmt.Printf("qrpc: %s(%q) %s\n", callmethod, wspath, time.Since(start))
+		fmt.Printf("qrpc: %s(%q) %s\n", callmethod, arg, time.Since(start))
 	}
 }
 
-func agentQRPCCall(w io.Writer, cmd, wspath string) (string, error) {
-	ag := openAgent()
-	sess, err := mux.DialUnix(ag.SocketPath)
+func agentQRPCCall(w io.Writer, cmd, arg string) (string, error) {
+	var sess mux.Session
+	var err error
+	if os.Getenv("QRPC_HOST") != "" {
+		sess, err = mux.DialWebsocket(os.Getenv("QRPC_HOST"))
+	} else {
+		ag := openAgent()
+		sess, err = mux.DialUnix(ag.SocketPath)
+	}
 	if err != nil {
 		return "", err
 	}
 
 	client := &qrpc.Client{Session: sess}
 	var msg string
-	resp, err := client.Call(cmd, wspath, &msg)
+	resp, err := client.Call(cmd, arg, &msg)
 	if err != nil {
 		return msg, err
 	}
