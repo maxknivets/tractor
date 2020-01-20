@@ -38,14 +38,6 @@ func (s *Service) InitializeDaemon() (err error) {
 		return err
 	}
 
-	// for typescript files
-	for _, path := range collectDirs("./extension", []string{"node_modules", "out"}) {
-		err = s.watcher.Add(path)
-		if err != nil {
-			return err
-		}
-	}
-	// for go files
 	for _, path := range collectDirs("./pkg", nil) {
 		err = s.watcher.Add(path)
 		if err != nil {
@@ -149,7 +141,7 @@ func (s *Service) Serve(ctx context.Context) {
 				s.Logger.Debug("go file changed, testing/compiling...")
 				errs := make(chan error)
 				go func() {
-					cmd := exec.Command("go", "build", "-o", "./dev/bin/tractor.tmp", "./cmd/tractor")
+					cmd := exec.Command("go", "build", "-o", "./local/bin/tractor.tmp", "./cmd/tractor")
 					cmd.Stdout = s.output
 					cmd.Stderr = s.output
 					err := cmd.Run()
@@ -159,7 +151,7 @@ func (s *Service) Serve(ctx context.Context) {
 					}
 				}()
 				go func() {
-					cmd := exec.Command("go", "build", "-o", "./dev/bin/tractor-agent.tmp", "./cmd/tractor-agent")
+					cmd := exec.Command("go", "build", "-o", "./local/bin/tractor-agent.tmp", "./cmd/tractor-agent")
 					cmd.Stdout = s.output
 					cmd.Stderr = s.output
 					err := cmd.Run()
@@ -181,17 +173,17 @@ func (s *Service) Serve(ctx context.Context) {
 				go func() {
 					for i := 0; i < 3; i++ {
 						if err := <-errs; err != nil {
-							os.Remove("./dev/bin/tractor-agent.tmp")
-							os.Remove("./dev/bin/tractor.tmp")
+							os.Remove("./local/bin/tractor-agent.tmp")
+							os.Remove("./local/bin/tractor.tmp")
 							return
 						}
 					}
-					os.Rename("./dev/bin/tractor.tmp", "./dev/bin/tractor")
+					os.Rename("./local/bin/tractor.tmp", "./local/bin/tractor")
 
 					// NOTE: this is useless since go doesn't make deterministic builds.
 					// 		 just a reminder maybe someday we can restart more intelligently.
-					if !checksumMatch("./dev/bin/tractor-agent.tmp", "./dev/bin/tractor-agent") {
-						os.Rename("./dev/bin/tractor-agent.tmp", "./dev/bin/tractor-agent")
+					if !checksumMatch("./local/bin/tractor-agent.tmp", "./local/bin/tractor-agent") {
+						os.Rename("./local/bin/tractor-agent.tmp", "./local/bin/tractor-agent")
 						s.Daemon.OnFinished = func() {
 							err := syscall.Exec(os.Args[0], os.Args, os.Environ())
 							if err != nil {
@@ -200,7 +192,7 @@ func (s *Service) Serve(ctx context.Context) {
 						}
 						s.Daemon.Terminate()
 					} else {
-						os.Remove("./dev/bin/tractor-agent.tmp")
+						os.Remove("./local/bin/tractor-agent.tmp")
 					}
 
 				}()

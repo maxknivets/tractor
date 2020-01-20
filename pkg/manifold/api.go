@@ -1,6 +1,3 @@
-// WIP! New API
-// methods noted as triggering a change only
-// actually do so in their implementation on Object.
 package manifold
 
 import (
@@ -206,15 +203,6 @@ type Component interface {
 
 	// TODO
 	RelatedPrefabs()
-}
-
-// UserComponent is a user-defined component whose source is stored
-// the workspace.
-type UserComponent interface {
-	// TODO
-
-	// -where the code is stored
-	// -any initialization
 }
 
 type ObjectObserver struct {

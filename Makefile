@@ -36,6 +36,9 @@ studio/node_modules:
 	cd studio && yarn install
 	cd studio && yarn link qmux qrpc
 
-studio/shell/src-gen:
+studio/extension/lib:
+	cd studio/extension && yarn build
+
+studio/shell/src-gen: studio/extension/lib
 	cd studio/shell && yarn build
 
