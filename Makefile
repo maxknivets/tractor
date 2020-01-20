@@ -1,34 +1,41 @@
-.PHONY: build setup clobber dev
+.PHONY: build setup clobber dev versions
 
-build: clobber dev/bin/tractor-agent dev/bin/tractor 
+build: clobber local/bin/tractor-agent local/bin/tractor 
 
-setup: dev/workspace dev/bin studio/node_modules
+setup: local/workspace local/bin studio/node_modules
 	make build
 
 dev:
-	./dev/bin/tractor-agent --dev
+	./local/bin/tractor-agent --dev
 
 clobber:
-	rm -rf dev/bin/tractor 
+	rm -rf local/bin/tractor 
+	rm -rf local/bin/tractor-agent
 
-dev/bin:
-	mkdir -p dev/bin
+versions:
+	go version
+	node --version
+	git --version
+	
 
-dev/bin/tractor-agent: dev/bin
-	go build -o ./dev/bin/tractor-agent ./cmd/tractor-agent
+local/bin:
+	mkdir -p local/bin
 
-dev/bin/tractor: dev/bin
-	go build -o ./dev/bin/tractor ./cmd/tractor
+local/bin/tractor-agent: local/bin
+	go build -o ./local/bin/tractor-agent ./cmd/tractor-agent
 
-dev/workspace:
-	mkdir -p dev
-	cp -r data/workspace dev/workspace
-	mv dev/workspace/workspace.go.data dev/workspace/workspace.go
+local/bin/tractor: local/bin
+	go build -o ./local/bin/tractor ./cmd/tractor
+
+local/workspace:
+	mkdir -p local
+	cp -r data/workspace local/workspace
+	mv local/workspace/workspace.go.data local/workspace/workspace.go
 
 studio/node_modules:
 	cd studio && yarn install
 	cd studio && yarn link qmux qrpc
 
 studio/shell/src-gen:
-	cd studio/shell && yarn compile
+	cd studio/shell && yarn build
 
