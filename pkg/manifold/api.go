@@ -3,30 +3,25 @@
 // actually do so in their implementation on Object.
 package manifold
 
-import "reflect"
+import (
+	"reflect"
+)
 
-// Objector represents a type that is also an Object,
-// allowing easier access to the Object interface.
-type Objector interface {
-	Object() Object
-}
-
-// TreeNode is an interface for managing a node in a
+// TreeNode is an interface for managing an object in a
 // tree data structure.
 type TreeNode interface {
-	Objector
 
 	// Root returns the top-most parent to this node
 	// if there are any parents, otherwise it returns nil.
-	Root() TreeNode
+	Root() Object
 
 	// Parent returns the parent node to this node
 	// if there is one, otherwise it returns nil.
-	Parent() TreeNode
+	Parent() Object
 
 	// SetParent moves this node under the given node.
 	// note: triggers a change for objects
-	SetParent(node TreeNode)
+	SetParent(node Object)
 
 	// SiblingIndex returns the order of this node relative
 	// to its sibling nodes under their parent. If there is
@@ -43,64 +38,67 @@ type TreeNode interface {
 
 	// NextSibling returns the next the sibling of this node
 	// or nil if there is no parent.
-	NextSibling() TreeNode
+	NextSibling() Object
 
 	// PreviousSibling returns the previous sibling of this node
 	// or nil if there is no parent.
-	PreviousSibling() TreeNode
+	PreviousSibling() Object
 
-	// ChildNodes returns a slice of any child nodes of this node.
-	ChildNodes() []TreeNode
+	// Children returns a slice of any child nodes of this node.
+	Children() []Object
 
 	// RemoveChildAt removes and return the child node at the given index.
 	// note: triggers a change for objects
-	RemoveChildAt(idx int) TreeNode
+	RemoveChildAt(idx int) Object
 
 	// InsertChildAt inserts the node as a child at the given index.
 	// note: triggers a change for objects
-	InsertChildAt(idx int, node TreeNode)
+	InsertChildAt(idx int, node Object)
 
 	// RemoveChild removes the given node if it is a child of this node.
 	// note: triggers a change for objects
-	RemoveChild(node TreeNode)
+	RemoveChild(node Object)
 
 	// AppendChild adds the given node to this node's children.
 	// note: triggers a change for objects
-	AppendChild(child TreeNode)
+	AppendChild(child Object)
 
 	// ChildAt returns the child node at the given index. Using an
 	// index of -1 will return the last child.
-	ChildAt(idx int) TreeNode
+	ChildAt(idx int) Object
 }
 
 type ComponentList interface {
 
 	// AppendComponent adds a component to the component list.
 	// note: triggers a change for objects
-	//AppendComponent(com Component2)
+	AppendComponent(com Component)
 
 	// RemoveComponent removes the given component from the component list.
 	// note: triggers a change for objects
-	//RemoveComponent(com Component2)
+	RemoveComponent(com Component)
 
 	// InsertComponentAt inserts a component to the component list at the index
 	// specified.
 	// note: triggers a change for objects
-	//InsertComponentAt(idx int, com Component2)
+	InsertComponentAt(idx int, com Component)
 
 	// RemoveComponentAt removes and returns the component at the given index.
 	// note: triggers a change for objects
-	//RemoveComponentAt(idx int) Component2
+	RemoveComponentAt(idx int) Component
+
+	// HasComponent checks if a component is already in the list.
+	HasComponent(com Component) bool
 
 	// Component returns the component with the given name from the component list.
 	// Since the component name is typically a type and there can be several components
 	// of the same type, the name for each includes a suffix `/` and its index among
 	// the others of the same type. Example: `http.Server/0` returns the first component
 	// named `http.Server`.
-	//Component(name string) Component2
+	Component(name string) Component
 
 	// Components returns all the components in the component list.
-	Components() []Component2
+	Components() []Component
 }
 
 // AttributeSet is an interface for managing internal key-value
@@ -138,14 +136,14 @@ type ComponentSetter interface {
 type ComponentCaller interface {
 	// CallMethod will call the method at the given path relative
 	// to the current context.
-	CallMethod(path string, args, reply interface{}) error
+	CallMethod(path string, args []interface{}, reply interface{}) error
 }
 
 // Component is an interface for working with components meant to
 // be contained by an object. They often wrap a pointer to a struct
 // but can also represent a "virtual" component.
 // note: should be Component, but name exists in old implementation atm
-type Component2 interface {
+type Component interface {
 	ComponentGetter
 	ComponentSetter
 	ComponentCaller
@@ -159,7 +157,10 @@ type Component2 interface {
 	// on the containing object. Using an index of -1 will set it to the
 	// highest possible index.
 	// note: triggers a change for objects
-	SetIndex(idx int) error
+	SetIndex(idx int)
+
+	// ID returns a unique identifier for this object.
+	// ID() string
 
 	// Name returns the name of the component.
 	Name() string
@@ -183,14 +184,16 @@ type Component2 interface {
 	// component or nil if there is none.
 	Pointer() interface{}
 
-	// MarshalData returns a marshalable version of the data behind
+	// Snapshot returns a marshalable version of the data behind
 	// this component, such as a version of the Pointer value with
 	// pointer fields replaced with ID references.
-	MarshalData() interface{}
+	Snapshot() ComponentSnapshot
 
 	// Type returns a reflect.Type for the value of Pointer if there
 	// is one.
 	Type() reflect.Type
+
+	FieldType(path string) reflect.Type
 
 	// TODO
 	Fields()
@@ -232,33 +235,43 @@ type Object interface {
 	TreeNode
 	ComponentList
 	AttributeSet
-	//ComponentGetter
-	//ComponentSetter
-	//ComponentCaller
-
-	// Children returns the children of this object.
-	// note: convenience wrapper for TreeNode.ChildNodes() as Objects
-	//Children() []Object
+	ComponentGetter
+	ComponentSetter
+	ComponentCaller
 
 	// Name returns the name of this object.
 	Name() string
 
+	// Path returns the absolute path of this object.
+	Path() string
+
+	// Subpath returns a subpath of this object.
+	Subpath(names ...string) string
+
 	// SetName sets the name of this object.
 	// note: triggers a change for this object
-	//SetName(name string)
+	SetName(name string)
 
 	// ID returns a unique identifier for this object.
-	//ID() string
+	ID() string
 
 	// FindChild returns a descendant of this object that
 	// macthes the name or relative path. It returns nil
 	// if no descendant matches.
-	//FindChild(subpath string) Object
+	FindChild(subpath string) Object
 
 	// FindPointer returns a descendant of this object that
 	// contains a component pointing to the given struct
 	// reference. It returns nil if no components match.
-	//FindPointer(ptr interface{}) Object
+	FindPointer(ptr interface{}) Object
+
+	// ValueTo sets a component value from this objects
+	// registry based on the type of reflect.Value
+	ValueTo(rv reflect.Value)
+
+	FindID(id string) Object
+
+	RemoveID(id string) Object
 
 	// Observe registers an observer with the object that
 	// will be notified of changes to the object.
@@ -268,37 +281,17 @@ type Object interface {
 	// no longer be notified of changes.
 	Unobserve(observer *ObjectObserver)
 
-	// MainComponent returns the main component for this object
+	// Main returns the main component for this object
 	// or nil if there is none. The main component is not kept in
-	// the ComponentList. The main component is often a UserComponent.
-	//MainComponent() Component
+	// the ComponentList.
+	Main() Component
 
-	// SetMainComponent sets the main component for this object.
+	// SetMain sets the main component for this object.
 	// If the component exists in the ComponentList, it will be removed.
 	// note: triggers a change for this object
-	//SetMainComponent(com Component)
+	SetMain(com Component)
 
-	// System returns the root parent node of this object as a System
-	// if it is one, otherwise it returns nil.
-	System() System
-}
+	Snapshot() ObjectSnapshot
 
-// System is the root Object in a workspace.
-type System interface {
-	Object
-
-	// AbsPath returns a full path from root for a given object.
-	//AbsPath(obj Object) string
-
-	// ExpandPath returns a normalized absolute path for a relative
-	// path to the given object.
-	//ExpandPath(obj Object, path string) string
-
-	// FindID will find an object in the system that has the given
-	// ID or returns nil.
-	FindID(id string) Object
-
-	// RemoveID will remove and return the object from its parent that has the
-	// given ID, otherwise it returns nil.
-	//RemoveID(id string) Object
+	UpdateRegistry() error
 }

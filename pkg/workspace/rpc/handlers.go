@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"path/filepath"
 	"reflect"
+	"strings"
 
 	"github.com/manifold/qtalk/qrpc"
 	"github.com/manifold/tractor/pkg/manifold"
-	"github.com/manifold/tractor/pkg/workspace/state"
+	"github.com/manifold/tractor/pkg/manifold/library"
 )
 
 type AppendNodeParams struct {
@@ -79,7 +80,7 @@ func (s *Service) RemoveComponent() func(qrpc.Responder, *qrpc.Call) {
 			r.Return(fmt.Errorf("unable to find node: %s", params.ID))
 			return
 		}
-		n.RemoveComponent(params.Component)
+		n.RemoveComponent(n.Component(params.Component))
 		s.updateView()
 		r.Return(nil)
 	}
@@ -93,11 +94,12 @@ func (s *Service) AddDelegate() func(qrpc.Responder, *qrpc.Call) {
 			r.Return(err)
 			return
 		}
-		n := s.State.Root.FindID(params.ID)
-		if n == nil {
+		obj := s.State.Root.FindID(params.ID)
+		if obj == nil {
+			r.Return(nil)
 			return
 		}
-		r.Return(state.CreateDelegate(n))
+		r.Return(s.State.Image.CreateObjectPackage(obj))
 	}
 }
 
@@ -128,12 +130,11 @@ func (s *Service) UpdateNode() func(qrpc.Responder, *qrpc.Call) {
 			return
 		}
 		if params.Name != nil {
-			n.Name = *params.Name
+			n.SetName(*params.Name)
 		}
-		if params.Active != nil {
-			n.Active = *params.Active
-		}
-		n.Sync()
+		// if params.Active != nil {
+		// 	n.Active = *params.Active
+		// }
 		s.updateView()
 		r.Return(nil)
 	}
@@ -150,29 +151,30 @@ func (s *Service) CallMethod() func(qrpc.Responder, *qrpc.Call) {
 		if path == "" {
 			return
 		}
-		n := s.State.Root.FindNode(path)
-		localPath := path[len(n.FullPath())+1:]
-		n.CallMethod(localPath)
+		n := s.State.Root.FindChild(path)
+		localPath := path[len(n.Path())+1:]
+		// TODO: support args+ret
+		n.CallMethod(localPath, nil, nil)
 		s.updateView()
 		r.Return(nil)
 	}
 }
 
-func (s *Service) SetExpression() func(qrpc.Responder, *qrpc.Call) {
-	return func(r qrpc.Responder, c *qrpc.Call) {
-		var params SetValueParams
-		err := c.Decode(&params)
-		if err != nil {
-			r.Return(err)
-			return
-		}
-		n := s.State.Root.FindNode(params.Path)
-		localPath := params.Path[len(n.FullPath())+1:]
-		n.SetExpression(localPath, params.Value.(string))
-		s.updateView()
-		r.Return(nil)
-	}
-}
+// func (s *Service) SetExpression() func(qrpc.Responder, *qrpc.Call) {
+// 	return func(r qrpc.Responder, c *qrpc.Call) {
+// 		var params SetValueParams
+// 		err := c.Decode(&params)
+// 		if err != nil {
+// 			r.Return(err)
+// 			return
+// 		}
+// 		n := s.State.Root.FindChild(params.Path)
+// 		localPath := params.Path[len(n.Path())+1:]
+// 		// n.SetExpression(localPath, params.Value.(string))
+// 		s.updateView()
+// 		r.Return(nil)
+// 	}
+// }
 
 func (s *Service) SetValue() func(qrpc.Responder, *qrpc.Call) {
 	return func(r qrpc.Responder, c *qrpc.Call) {
@@ -182,31 +184,32 @@ func (s *Service) SetValue() func(qrpc.Responder, *qrpc.Call) {
 			r.Return(err)
 			return
 		}
-		n := s.State.Root.FindNode(params.Path)
-		localPath := params.Path[len(n.FullPath())+1:]
+		n := s.State.Root.FindChild(params.Path)
+		localPath := params.Path[len(n.Path())+1:]
 		switch {
 		case params.IntValue != nil:
-			n.SetValue(localPath, *params.IntValue)
+			n.SetField(localPath, *params.IntValue)
 		case params.RefValue != nil:
 			refPath := filepath.Dir(*params.RefValue) // TODO: support subfields
-			refNode := s.State.Root.FindNode(refPath)
-			refType := n.Field(localPath)
+			refNode := s.State.Root.FindChild(refPath)
+			parts := strings.SplitN(localPath, "/", 2)
+			refType := n.Component(parts[0]).FieldType(parts[1])
 			if refNode != nil {
-				typeSelector := (*params.RefValue)[len(refNode.FullPath())+1:]
+				typeSelector := (*params.RefValue)[len(refNode.Path())+1:]
 				c := refNode.Component(typeSelector)
 				if c != nil {
-					n.SetValue(localPath, c)
+					n.SetField(localPath, c)
 				} else {
 					// interface reference
 					ptr := reflect.New(refType)
-					refNode.Registry.ValueTo(ptr)
+					refNode.ValueTo(ptr)
 					if ptr.IsValid() {
-						n.SetValue(localPath, reflect.Indirect(ptr).Interface())
+						n.SetField(localPath, reflect.Indirect(ptr).Interface())
 					}
 				}
 			}
 		default:
-			n.SetValue(localPath, params.Value)
+			n.SetField(localPath, params.Value)
 		}
 		s.updateView()
 		r.Return(nil)
@@ -228,7 +231,7 @@ func (s *Service) AppendComponent() func(qrpc.Responder, *qrpc.Call) {
 		if p == nil {
 			p = s.State.Root
 		}
-		v := manifold.NewComponent(params.Name)
+		v := library.Lookup(params.Name).New()
 		p.AppendComponent(v)
 		s.updateView()
 		r.Return(nil)
@@ -246,8 +249,7 @@ func (s *Service) DeleteNode() func(qrpc.Responder, *qrpc.Call) {
 		if id == "" {
 			return
 		}
-		n := s.State.Root.FindID(id)
-		n.Remove()
+		s.State.Root.RemoveID(id)
 		s.updateView()
 		r.Return(nil)
 	}
@@ -268,9 +270,8 @@ func (s *Service) AppendNode() func(qrpc.Responder, *qrpc.Call) {
 		if p == nil {
 			p = s.State.Root
 		}
-		n := manifold.NewNode(params.Name)
-		p.Append(n)
-		n.Sync()
+		n := manifold.New(params.Name)
+		p.AppendChild(n)
 		s.updateView()
 		r.Return(nil)
 	}
@@ -289,7 +290,6 @@ func (s *Service) MoveNode() func(qrpc.Responder, *qrpc.Call) {
 			return
 		}
 		n.SetSiblingIndex(params.Index)
-		// n.Sync()
 		s.updateView()
 		r.Return(nil)
 	}

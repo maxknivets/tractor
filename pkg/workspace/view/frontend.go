@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/manifold/tractor/pkg/manifold"
+	"github.com/manifold/tractor/pkg/manifold/library"
 
 	//"github.com/manifold/tractor/pkg/repl"
 
@@ -59,7 +60,7 @@ type State struct {
 	SelectedNode   string            `msgpack:"selectedNode"`
 }
 
-func exportElem(v reflected.Value, path string, idx int, n *manifold.Node) (Field, bool) {
+func exportElem(v reflected.Value, path string, idx int, n manifold.Object) (Field, bool) {
 	elemPath := path + "/" + strconv.Itoa(idx)
 	switch v.Type().Kind() {
 	case reflect.Bool:
@@ -87,7 +88,7 @@ func exportElem(v reflected.Value, path string, idx int, n *manifold.Node) (Fiel
 	}
 }
 
-func exportField(o reflected.Value, field, path string, n *manifold.Node) Field {
+func exportField(o reflected.Value, field, path string, n manifold.Object) Field {
 	var kind reflect.Kind
 	if o.Type().Kind() == reflect.Struct {
 		kind = o.Type().FieldType(field).Kind()
@@ -99,45 +100,45 @@ func exportField(o reflected.Value, field, path string, n *manifold.Node) Field 
 		}
 	}
 	fieldPath := path + "/" + field
-	var expr *string
-	exprPath := fieldPath[len(n.FullPath())+1:]
-	if e := n.Expression(exprPath); e != "" {
-		expr = &e
-	}
+	// var expr *string
+	// exprPath := fieldPath[len(n.FullPath())+1:]
+	// if e := n.Expression(exprPath); e != "" {
+	// 	expr = &e
+	// }
 	switch kind {
 	case reflect.Invalid:
 		return Field{
-			Name:       field,
-			Path:       fieldPath,
-			Expression: expr,
-			Type:       "string",
-			Value:      "INVALID",
+			Name: field,
+			Path: fieldPath,
+			// Expression: expr,
+			Type:  "string",
+			Value: "INVALID",
 		}
 	case reflect.Bool:
 		return Field{
-			Name:       field,
-			Path:       fieldPath,
-			Expression: expr,
-			Type:       "boolean",
-			Value:      o.Get(field).Interface(),
+			Name: field,
+			Path: fieldPath,
+			// Expression: expr,
+			Type:  "boolean",
+			Value: o.Get(field).Interface(),
 		}
 	case reflect.String:
 		return Field{
-			Name:       field,
-			Path:       fieldPath,
-			Expression: expr,
-			Type:       "string",
-			Value:      o.Get(field).Interface(),
+			Name: field,
+			Path: fieldPath,
+			// Expression: expr,
+			Type:  "string",
+			Value: o.Get(field).Interface(),
 		}
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
 		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
 		reflect.Float32, reflect.Float64:
 		return Field{
-			Path:       fieldPath,
-			Name:       field,
-			Expression: expr,
-			Type:       "number",
-			Value:      o.Get(field).Interface(),
+			Path: fieldPath,
+			Name: field,
+			// Expression: expr,
+			Type:  "number",
+			Value: o.Get(field).Interface(),
 		}
 	case reflect.Struct:
 		var fields []Field
@@ -146,11 +147,11 @@ func exportField(o reflected.Value, field, path string, n *manifold.Node) Field 
 			fields = append(fields, exportField(v, f, fieldPath, n))
 		}
 		return Field{
-			Path:       fieldPath,
-			Name:       field,
-			Expression: expr,
-			Type:       "struct",
-			Fields:     fields,
+			Path: fieldPath,
+			Name: field,
+			// Expression: expr,
+			Type:   "struct",
+			Fields: fields,
 		}
 	case reflect.Map:
 		var fields []Field
@@ -159,11 +160,11 @@ func exportField(o reflected.Value, field, path string, n *manifold.Node) Field 
 			fields = append(fields, exportField(v, f, fieldPath, n))
 		}
 		return Field{
-			Path:       fieldPath,
-			Name:       field,
-			Expression: expr,
-			Type:       "map",
-			Fields:     fields,
+			Path: fieldPath,
+			Name: field,
+			// Expression: expr,
+			Type:   "map",
+			Fields: fields,
 		}
 	case reflect.Slice:
 		var fields []Field
@@ -172,21 +173,21 @@ func exportField(o reflected.Value, field, path string, n *manifold.Node) Field 
 			f, ok := exportElem(e, fieldPath, idx, n)
 			if !ok {
 				return Field{
-					Name:       field,
-					Path:       fieldPath,
-					Expression: expr,
-					Type:       "string",
-					Value:      "UNSUPPORTED SLICE",
+					Name: field,
+					Path: fieldPath,
+					// Expression: expr,
+					Type:  "string",
+					Value: "UNSUPPORTED SLICE",
 				}
 			}
 			fields = append(fields, f)
 		}
 		return Field{
-			Path:       fieldPath,
-			Name:       field,
-			Expression: expr,
-			Type:       "array",
-			Fields:     fields,
+			Path: fieldPath,
+			Name: field,
+			// Expression: expr,
+			Type:   "array",
+			Fields: fields,
 		}
 	case reflect.Ptr, reflect.Interface:
 		var v interface{}
@@ -199,17 +200,17 @@ func exportField(o reflected.Value, field, path string, n *manifold.Node) Field 
 		}
 		var path string
 		if v != nil {
-			refNode := n.Root().FindPtr(v)
+			refNode := n.Root().FindPointer(v)
 			if refNode != nil {
-				path = refNode.FullPath()
+				path = refNode.Path()
 			}
 		}
 		return Field{
-			Path:       fieldPath,
-			Name:       field,
-			Expression: expr,
-			Type:       fmt.Sprintf("reference:%s", t.Name()),
-			Value:      path,
+			Path: fieldPath,
+			Name: field,
+			// Expression: expr,
+			Type:  fmt.Sprintf("reference:%s", t.Name()),
+			Value: path,
 		}
 	default:
 		panic(o.Type().FieldType(field).Kind())
@@ -229,24 +230,24 @@ func strInSlice(strs []string, str string) bool {
 	return false
 }
 
-func (s *State) Update(root *manifold.Node) {
+func (s *State) Update(root manifold.Object) {
 	s.Hierarchy = []string{}
 	s.Nodes = make(map[string]Node)
-	manifold.Walk(root, func(n *manifold.Node) {
-		s.Hierarchy = append(s.Hierarchy, n.FullPath())
+	manifold.Walk(root, func(n manifold.Object) {
+		s.Hierarchy = append(s.Hierarchy, n.Path())
 		node := Node{
-			Name:       n.Name,
-			Active:     n.Active,
-			Dir:        n.Dir,
-			Path:       n.FullPath(),
+			Name:   n.Name(),
+			Active: true,
+			// Dir:        n.Dir,
+			Path:       n.Path(),
 			Index:      n.SiblingIndex(),
-			ID:         n.ID,
+			ID:         n.ID(),
 			Components: []Component{},
 		}
-		for _, com := range n.Components {
+		for _, com := range n.Components() {
 			var fields []Field
-			c := reflected.ValueOf(com.Ref)
-			path := n.FullPath() + "/" + com.Name
+			c := reflected.ValueOf(com.Pointer())
+			path := n.Path() + "/" + com.Name()
 			hiddenFields := c.Type().FieldsTagged("tractor", "hidden")
 			for _, field := range c.Type().Fields() {
 				if strInSlice(hiddenFields, field) {
@@ -255,14 +256,14 @@ func (s *State) Update(root *manifold.Node) {
 				fields = append(fields, exportField(c, field, path, n))
 			}
 			var buttons []Button
-			p, ok := com.Ref.(ButtonProvider)
+			p, ok := com.Pointer().(ButtonProvider)
 			if ok {
 				buttons = p.InspectorButtons()
 				for idx, button := range buttons {
 					if button.OnClick != "" {
 						continue
 					}
-					typ := reflect.ValueOf(com.Ref).Type()
+					typ := reflect.ValueOf(com.Pointer()).Type()
 					for i := 0; i < typ.NumMethod(); i++ {
 						method := typ.Method(i)
 						if method.Name != button.Name {
@@ -277,27 +278,27 @@ func (s *State) Update(root *manifold.Node) {
 			}
 
 			node.Components = append(node.Components, Component{
-				Name:    com.Name,
+				Name:    com.Name(),
 				Fields:  fields,
 				Buttons: buttons,
 			})
 		}
-		s.Nodes[n.ID] = node
-		s.NodePaths[n.FullPath()] = n.ID
+		s.Nodes[n.ID()] = node
+		s.NodePaths[n.Path()] = n.ID()
 	})
 }
 
-func New(root *manifold.Node) *State {
+func New(root manifold.Object) *State {
 	state := &State{
 		Projects:       []Project{},
 		CurrentProject: "dev",
-		Components:     manifold.RegisteredComponents(),
+		Components:     library.Names(),
 		Nodes:          make(map[string]Node),
 		NodePaths:      make(map[string]string),
 		ComponentPaths: make(map[string]string),
 	}
 	for _, name := range state.Components {
-		state.ComponentPaths[name] = manifold.RegisteredComponentPath(name)
+		state.ComponentPaths[name] = library.Lookup(name).Filepath
 	}
 	state.Update(root)
 	return state

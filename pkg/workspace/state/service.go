@@ -4,9 +4,11 @@ import (
 	"context"
 	"log"
 	"os"
-	"path/filepath"
+	"time"
 
 	"github.com/manifold/tractor/pkg/manifold"
+	"github.com/manifold/tractor/pkg/manifold/image"
+	"github.com/manifold/tractor/pkg/misc/debouncer"
 	"github.com/manifold/tractor/pkg/misc/logging"
 )
 
@@ -14,28 +16,26 @@ type Service struct {
 	Protocol   string
 	ListenAddr string
 
-	Log  logging.Logger
-	Root *manifold.Node
+	Log   logging.Logger
+	Root  manifold.Object
+	Image *image.Image
 }
 
 func (s *Service) InitializeDaemon() (err error) {
-	s.Root, err = LoadHierarchy()
+	wd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	s.Image = image.New(wd)
+
+	s.Root, err = s.Image.Load()
 	if err != nil {
 		return err
 	}
 
-	// TODO: deprecated, remove
-	manifold.Walk(s.Root, func(n *manifold.Node) {
-		for _, com := range n.Components {
-			if initializer, ok := com.Ref.(preInitializer); ok {
-				initializer.PreInitialize()
-			}
-		}
-	})
-
-	manifold.Walk(s.Root, func(n *manifold.Node) {
-		for _, com := range n.Components {
-			if initializer, ok := com.Ref.(initializer); ok {
+	manifold.Walk(s.Root, func(n manifold.Object) {
+		for _, com := range n.Components() {
+			if initializer, ok := com.Pointer().(initializer); ok {
 				if err := initializer.Initialize(); err != nil {
 					log.Print(err)
 				}
@@ -43,18 +43,14 @@ func (s *Service) InitializeDaemon() (err error) {
 		}
 	})
 
-	s.Root.Observe(&manifold.NodeObserver{
-		OnChange: func(node *manifold.Node, path string, old, new interface{}) {
-			if path == "Name" && node.Dir != "" {
-				newDir := filepath.Join(filepath.Dir(node.Dir), new.(string))
-				if node.Dir != newDir {
-					// TODO: do not break abstraction, have workspace handle this
-					if err := os.Rename(node.Dir, newDir); err != nil {
-						log.Fatal(err)
-					}
-				}
-			}
-			s.Snapshot()
+	debounce := debouncer.New(2 * time.Second)
+	s.Root.Observe(&manifold.ObjectObserver{
+		OnChange: func(node manifold.Object, path string, old, new interface{}) {
+			debounce(func() {
+				// TODO: Log errors?
+				log.Print("change triggered SNAPSHOT")
+				s.Snapshot()
+			})
 		},
 	})
 
@@ -70,8 +66,7 @@ func (s *Service) Serve(ctx context.Context) {
 }
 
 func (s *Service) Snapshot() error {
-	// TODO: Log errors?
-	return SaveHierarchy(s.Root)
+	return s.Image.Write(s.Root)
 }
 
 type preInitializer interface {

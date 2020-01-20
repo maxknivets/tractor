@@ -10,18 +10,17 @@ import (
 	"github.com/manifold/tractor/pkg/misc/logging/std"
 	"github.com/manifold/tractor/pkg/workspace/rpc"
 	"github.com/manifold/tractor/pkg/workspace/state"
-
-	_ "github.com/manifold/tractor/com/file"
-	_ "github.com/manifold/tractor/com/http"
-	_ "github.com/manifold/tractor/com/net"
-	_ "github.com/manifold/tractor/com/net/irc"
-	_ "github.com/manifold/tractor/com/time"
+	"github.com/manifold/tractor/stdlib"
 )
 
 var (
 	addr  = flag.String("addr", "localhost:4243", "server listener address")
 	proto = flag.String("proto", "websocket", "server listener protocol")
 )
+
+func init() {
+	stdlib.Load()
+}
 
 func Run() {
 	flag.Parse()

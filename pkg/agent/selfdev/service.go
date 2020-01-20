@@ -52,7 +52,7 @@ func (s *Service) InitializeDaemon() (err error) {
 			return err
 		}
 	}
-	for _, path := range collectDirs("./com", nil) {
+	for _, path := range collectDirs("./lib", nil) {
 		err = s.watcher.Add(path)
 		if err != nil {
 			return err
@@ -131,16 +131,16 @@ func (s *Service) Serve(ctx context.Context) {
 							}()
 						}
 					}
-					if strings.Contains(event.Name, "/studio/extension/") {
-						go func() {
-							// theia extension
-							cmd := exec.Command("tsc", "-p", "./studio/extension")
-							cmd.Stdout = s.output
-							cmd.Stderr = s.output
-							cmd.Run()
-							s.Logger.Debug("finished")
-						}()
-					}
+					// if strings.Contains(event.Name, "/studio/extension/") {
+					go func() {
+						// theia extension
+						cmd := exec.Command("tsc", "-p", "./studio/extension")
+						cmd.Stdout = s.output
+						cmd.Stderr = s.output
+						cmd.Run()
+						s.Logger.Debug("finished")
+					}()
+					// }
 				})
 
 			}

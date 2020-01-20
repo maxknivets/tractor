@@ -57,7 +57,7 @@ func (s *Service) InitializeDaemon() (err error) {
 	s.api.HandleFunc("deleteNode", s.DeleteNode())
 	s.api.HandleFunc("appendComponent", s.AppendComponent())
 	s.api.HandleFunc("setValue", s.SetValue())
-	s.api.HandleFunc("setExpression", s.SetExpression())
+	// s.api.HandleFunc("setExpression", s.SetExpression())
 	s.api.HandleFunc("callMethod", s.CallMethod())
 	s.api.HandleFunc("updateNode", s.UpdateNode())
 	s.api.HandleFunc("addDelegate", s.AddDelegate())

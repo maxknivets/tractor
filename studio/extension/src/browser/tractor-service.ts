@@ -82,6 +82,7 @@ export class TractorService implements WidgetFactory {
         try {
 			var conn = await qmux.DialWebsocket("ws://localhost:3001/");
 		} catch (e) {
+            this.logger.warn(e);
 			scheduleRetry(() => this.connectAgent());
 			return;
 		}
@@ -96,6 +97,7 @@ export class TractorService implements WidgetFactory {
 		try {
 			var conn = await qmux.DialWebsocket("ws://localhost:3001"+socketPath);
 		} catch (e) {
+            this.logger.warn(e);
 			scheduleRetry(() => this.connectWorkspace(socketPath));
 			return;
 		}
@@ -111,7 +113,7 @@ export class TractorService implements WidgetFactory {
         this.api.handle("state", {
 			"serveRPC": async (r, c) => {
                 var data = await c.decode();
-                //this.messages.info("DEBUG: got data");
+                this.logger.warn(data);
                 if (this.widget) {
                     this.widget.setData(data);
                     this.onDidChangeEmitter.fire(this.widget.rootObjects());
