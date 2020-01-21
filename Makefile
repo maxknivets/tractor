@@ -1,8 +1,8 @@
-.PHONY: build setup clobber dev versions
+.PHONY: build setup clobber dev versions studio
 
 build: clobber local/bin/tractor-agent local/bin/tractor 
 
-setup: local/workspace local/bin studio/node_modules
+setup: local/workspace local/bin studio
 	make build
 
 dev:
@@ -13,9 +13,11 @@ clobber:
 	rm -rf local/bin/tractor-agent
 
 versions:
-	go version
-	node --version
-	git --version
+	@go version
+	@echo "node $(shell node --version)"
+	@git --version
+	@echo "yarn $(shell yarn --version)"
+	@echo "typescript $(shell tsc --version)"
 	
 
 local/bin:
@@ -31,6 +33,10 @@ local/workspace:
 	mkdir -p local
 	cp -r data/workspace local/workspace
 	mv local/workspace/workspace.go.data local/workspace/workspace.go
+	mkdir -p ~/.tractor/workspaces
+	ln -s $(PWD)/local/workspace ~/.tractor/workspaces/dev
+
+studio: studio/node_modules studio/extension/lib studio/shell/src-gen
 
 studio/node_modules:
 	cd studio && yarn install
