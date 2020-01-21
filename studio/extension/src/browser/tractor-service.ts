@@ -23,7 +23,7 @@ import { Widget } from '@phosphor/widgets';
 import { WorkspaceService } from '@theia/workspace/lib/browser';
 import { ILogger, MessageService } from '@theia/core';
 
-import * as qmux from '../qmux.js';
+import * as qmux from 'qmux/dist/browser/qmux.min.js';
 import * as qrpc from 'qrpc';
 
 const RetryInterval = 500;

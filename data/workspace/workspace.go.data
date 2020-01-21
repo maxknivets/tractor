@@ -1,7 +1,7 @@
 package main
 
 import (
-	_ "github.com/manifold/tractor/dev/workspace/delegates"
+	_ "workspace/pkg/obj"
 	"github.com/manifold/tractor/pkg/workspace/daemon"
 )
 

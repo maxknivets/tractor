@@ -10,8 +10,21 @@ These are instructions for development, which is the only way to use Tractor rig
  * make
  * yarn `npm i -g yarn`
  * typescript `yarn global add typescript`
- * for linux: gtk+3.0-dev webkit2gtk-dev libappindicator-dev g++
- * for mac: XCode Developer Tools, if you haven't
+
+ * for linux: 
+   * gtk+3.0-dev
+   * webkit2gtk-dev
+   * libappindicator-dev
+   * g++
+ * for mac: 
+   * XCode Command Line Tools
+   * larger open file limit (`sudo ulimit -n 2048`)
+
+ See what versions you have with:
+ ```
+ $ make versions
+ ```
+ 
 
 ### Setup
 You first need to clone and link qtalk:
