@@ -1,33 +1,41 @@
-package manifold
+package object
 
 import (
 	pathmod "path"
 	"runtime"
 	"strings"
+
+	"github.com/manifold/tractor/pkg/manifold"
 )
 
 // observe component list changes
 
-func (o *object) AppendComponent(com Component) {
+func (o *object) AppendComponent(com manifold.Component) {
 	o.componentlist.AppendComponent(com)
 	com.SetContainer(o)
 	o.notify(o, "::Components", nil, com)
 }
 
-func (o *object) RemoveComponent(com Component) {
+func (o *object) RemoveComponent(com manifold.Component) {
 	o.componentlist.RemoveComponent(com)
 	o.notify(o, "::Components", com, nil)
+	if o.main == com {
+		o.main = nil
+	}
 }
 
-func (o *object) InsertComponentAt(idx int, com Component) {
+func (o *object) InsertComponentAt(idx int, com manifold.Component) {
 	o.componentlist.InsertComponentAt(idx, com)
 	com.SetContainer(o)
 	o.notify(o, "::Components", nil, com)
 }
 
-func (o *object) RemoveComponentAt(idx int) Component {
+func (o *object) RemoveComponentAt(idx int) manifold.Component {
 	c := o.componentlist.RemoveComponentAt(idx)
 	o.notify(o, "::Components", c, nil)
+	if o.main == c {
+		o.main = nil
+	}
 	return c
 }
 
@@ -49,7 +57,11 @@ func (o *object) UnsetAttribute(attr string) {
 	}
 }
 
-func (sender *object) notify(changed Object, path string, old, new interface{}) {
+func (sender *object) notify(changed manifold.Object, path string, old, new interface{}) {
+	sender.Notify(changed, path, old, new)
+}
+
+func (sender *object) Notify(changed manifold.Object, path string, old, new interface{}) {
 	if sender == nil {
 		return
 	}

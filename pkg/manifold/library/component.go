@@ -1,31 +1,53 @@
-package manifold
+package library
 
 import (
 	"fmt"
 	"reflect"
 
+	"github.com/manifold/tractor/pkg/manifold"
 	"github.com/manifold/tractor/pkg/misc/jsonpointer"
+	"github.com/mitchellh/mapstructure"
 	reflected "github.com/progrium/prototypes/go-reflected"
 )
 
 type component struct {
-	object  *object
+	object  manifold.Object
 	name    string
 	id      string
 	enabled bool
 	value   interface{}
 }
 
-func newComponent(name string, value interface{}) *component {
+func newComponent(name string, value interface{}, id string) *component {
+	var typedValue interface{}
+	if id == "" {
+		// TODO: make up mind on how to use component IDs
+		//id = xid.New().String()
+		if rc := Lookup(name); rc != nil {
+			typedValue = rc.NewValue()
+		}
+	} else {
+		if rc := LookupID(id); rc != nil {
+			typedValue = rc.NewValue()
+		}
+	}
+	if typedValue != nil {
+		if err := mapstructure.Decode(value, typedValue); err == nil {
+			value = typedValue
+		} else {
+			panic(err)
+		}
+	}
 	return &component{
 		name:    name,
 		enabled: true,
 		value:   value,
+		id:      id,
 	}
 }
 
-func NewComponent(name string, value interface{}) Component {
-	return newComponent(name, value)
+func NewComponent(name string, value interface{}, id string) manifold.Component {
+	return newComponent(name, value, id)
 }
 
 func (c *component) GetField(path string) (interface{}, error) {
@@ -39,7 +61,10 @@ func (c *component) SetField(path string, value interface{}) error {
 		return nil
 	}
 	jsonpointer.SetReflect(c.value, path, value)
-	c.object.notify(c.object, fmt.Sprintf("%s/%s", c.name, path), old, value)
+	// TODO: potentially replace this with an observer system that hooks in elsewhere
+	if n, ok := c.object.(manifold.ObjectNotifier); ok {
+		n.Notify(c.object, fmt.Sprintf("%s/%s", c.name, path), old, value)
+	}
 	return nil
 }
 
@@ -95,7 +120,9 @@ func (c *component) SetIndex(idx int) {
 	}
 	c.object.RemoveComponent(c)
 	c.object.InsertComponentAt(idx, c)
-	c.object.notify(c.object, fmt.Sprintf("%s/::Index", c.name), old, idx)
+	if n, ok := c.object.(manifold.ObjectNotifier); ok {
+		n.Notify(c.object, fmt.Sprintf("%s/::Index", c.name), old, idx)
+	}
 }
 
 func (c *component) Name() string {
@@ -116,17 +143,17 @@ func (c *component) SetEnabled(enable bool) {
 		return
 	}
 	c.enabled = enable
-	c.object.notify(c.object, fmt.Sprintf("%s/::Enabled", c.name), old, enable)
+	if n, ok := c.object.(manifold.ObjectNotifier); ok {
+		n.Notify(c.object, fmt.Sprintf("%s/::Enabled", c.name), old, enable)
+	}
 }
 
-func (c *component) Container() Object {
+func (c *component) Container() manifold.Object {
 	return c.object
 }
 
-func (c *component) SetContainer(obj Object) {
-	if o, ok := obj.(*object); ok || obj == nil {
-		c.object = o
-	}
+func (c *component) SetContainer(obj manifold.Object) {
+	c.object = obj
 }
 
 // TODO: rename to Value()?
@@ -150,17 +177,46 @@ func (c *component) RelatedComponents() {}
 // TODO
 func (c *component) RelatedPrefabs() {}
 
-func (c *component) Snapshot() ComponentSnapshot {
-	com := ComponentSnapshot{
+func (c *component) Snapshot() manifold.ComponentSnapshot {
+	com := manifold.ComponentSnapshot{
 		Name:    c.name,
 		ID:      c.id,
 		Enabled: c.enabled,
 	}
 	if c.object != nil {
 		com.ObjectID = c.object.ID()
-		com.Value = DeflateReferences(c.object.Root(), c.value)
+		com.Value = deflateReferences(c.object.Root(), c.value)
 	} else {
-		com.Value = DeflateReferences(nil, c.value)
+		com.Value = deflateReferences(nil, c.value)
 	}
 	return com
+}
+
+func deflateReferences(root manifold.Object, v interface{}) map[string]interface{} {
+	out := make(map[string]interface{})
+	rv := reflected.ValueOf(v)
+	rt := rv.Type()
+	for _, field := range rt.Fields() {
+		ft := rt.FieldType(field)
+		switch ft.Kind() {
+		case reflect.Struct, reflect.Map, reflect.Slice:
+			out[field] = deflateReferences(root, rv.Get(field).Interface())
+		case reflect.Ptr, reflect.Interface:
+			if rv.Get(field).IsNil() {
+				continue
+			}
+			if root == nil {
+				out[field] = deflateReferences(root, rv.Get(field).Interface())
+			}
+			obj := root.Root().FindPointer(rv.Get(field).Interface())
+			if obj == nil {
+				out[field] = map[string]interface{}{"$ref": nil}
+			} else {
+				out[field] = map[string]interface{}{"$ref": obj.ID()}
+			}
+		default:
+			out[field] = rv.Get(field).Interface()
+		}
+	}
+	return out
 }

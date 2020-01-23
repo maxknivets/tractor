@@ -156,8 +156,8 @@ type Component interface {
 	// note: triggers a change for objects
 	SetIndex(idx int)
 
-	// ID returns a unique identifier for this object.
-	// ID() string
+	// ID returns a unique identifier for this component.
+	ID() string
 
 	// Name returns the name of the component.
 	Name() string
@@ -203,6 +203,10 @@ type Component interface {
 
 	// TODO
 	RelatedPrefabs()
+}
+
+type ObjectNotifier interface {
+	Notify(changed Object, path string, old, new interface{})
 }
 
 type ObjectObserver struct {
@@ -283,3 +287,36 @@ type Object interface {
 
 	UpdateRegistry() error
 }
+
+type ObjectSnapshot struct {
+	ID         string
+	Name       string
+	Attrs      map[string]interface{}
+	ParentID   string
+	Children   [][]string
+	Components []ComponentSnapshot
+	Main       string
+}
+
+type ComponentSnapshot struct {
+	ObjectID string
+	ID       string
+	Name     string
+	Enabled  bool
+	Attrs    map[string]interface{}
+	Value    interface{}
+}
+
+// func (c *ComponentSnapshot) UnmarshalJSON(b []byte) (err error) {
+// 	type componentSnapshot ComponentSnapshot
+// 	err = json.Unmarshal(b, (*componentSnapshot)(c))
+// 	if err != nil {
+// 		return
+// 	}
+// 	c.refs = scanRefs(c.Value, c.Name, c.ObjectID)
+// 	return
+// }
+
+// func (c *ComponentSnapshot) SnapshotRefs() []SnapshotRef {
+// 	return c.refs
+// }

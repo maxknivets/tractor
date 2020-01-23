@@ -113,7 +113,7 @@ func (s *Service) Serve(ctx context.Context) {
 				}
 				for _, ws := range workspaces {
 					if ws.Name == msg.Item.Title {
-						open.StartWith(ws.TargetPath, "Visual Studio Code.app")
+						open.Start("http://localhost:3000/#" + ws.TargetPath)
 					}
 				}
 			default:

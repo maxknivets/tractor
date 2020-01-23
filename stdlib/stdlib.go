@@ -1,37 +1,44 @@
 package stdlib
 
 import (
-	"net"
+	"path"
+	"runtime"
 
 	"github.com/manifold/tractor/stdlib/file"
 	"github.com/manifold/tractor/stdlib/http"
+	"github.com/manifold/tractor/stdlib/net"
 	"github.com/manifold/tractor/stdlib/net/irc"
 	"github.com/manifold/tractor/stdlib/time"
 
 	"github.com/manifold/tractor/pkg/manifold/library"
 )
 
+func filepath(subpath string) string {
+	_, filename, _, _ := runtime.Caller(1)
+	return path.Join(path.Dir(filename), subpath)
+}
+
 func Load() {
 	// file
-	library.Register(&file.Local{}, "", "")
-	library.Register(&file.Path{}, "", "")
+	library.Register(&file.Local{}, "", filepath("file/local.go"))
+	library.Register(&file.Path{}, "", filepath("file/path.go"))
 
 	// http
-	library.Register(&http.SingleUserBasicAuth{}, "", "")
-	library.Register(&http.FileServer{}, "", "")
-	library.Register(&http.Logger{}, "", "")
-	library.Register(&http.Mux{}, "", "")
-	library.Register(&http.Server{}, "", "")
-	library.Register(&http.TemplateRenderer{}, "", "")
+	library.Register(&http.SingleUserBasicAuth{}, "", filepath("http/basicauth.go"))
+	library.Register(&http.FileServer{}, "", filepath("http/fileserver.go"))
+	library.Register(&http.Logger{}, "", filepath("http/logger.go"))
+	library.Register(&http.Mux{}, "", filepath("http/mux.go"))
+	library.Register(&http.Server{}, "", filepath("http/server.go"))
+	library.Register(&http.TemplateRenderer{}, "", filepath("http/templaterenderer.go"))
 
 	// net
-	library.Register(&net.TCPListener{}, "", "")
+	library.Register(&net.TCPListener{}, "", filepath("net/listener.go"))
 
 	// net/irc
-	library.Register(&irc.IRCClient{}, "", "")
-	library.Register(&irc.BangMux{}, "", "")
+	library.Register(&irc.IRCClient{}, "", filepath("net/irc/irc.go"))
+	library.Register(&irc.BangMux{}, "", filepath("net/irc/irc.go"))
 
 	// time
-	library.Register(&time.CronManager{}, "", "")
+	library.Register(&time.CronManager{}, "", filepath("time/cron.go"))
 
 }

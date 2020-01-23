@@ -1,9 +1,10 @@
-package manifold
+package object
 
 import (
 	"fmt"
 	"testing"
 
+	"github.com/manifold/tractor/pkg/manifold"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -26,13 +27,13 @@ func TestTreeNode(t *testing.T) {
 
 	t.Run("SiblingIndex", func(t *testing.T) {
 		// test when child nodes are addes as *object or *treeNode
-		addChildNodes := map[string]func(o Object) Object{
+		addChildNodes := map[string]func(o manifold.Object) manifold.Object{
 			"object":   rootChildAsObject,
 			"treeNode": rootChildAsTreeNode,
 		}
 
 		// test when SetSibling() is called on *object or *treeNode
-		testSetSibling := map[string]func(Object) (Object, Object, Object){
+		testSetSibling := map[string]func(manifold.Object) (manifold.Object, manifold.Object, manifold.Object){
 			"object":   setSiblingOnObject,
 			"treeNode": setSiblingOnTreeNode,
 		}
@@ -162,27 +163,27 @@ func TestTreeNode(t *testing.T) {
 
 }
 
-func setSiblingOnTreeNode(root Object) (Object, Object, Object) {
+func setSiblingOnTreeNode(root manifold.Object) (manifold.Object, manifold.Object, manifold.Object) {
 	siblings := root.Children()
 	return siblings[0], siblings[1], siblings[2]
 }
 
-func setSiblingOnObject(root Object) (Object, Object, Object) {
+func setSiblingOnObject(root manifold.Object) (manifold.Object, manifold.Object, manifold.Object) {
 	siblings := root.Children()
 	return siblings[0], siblings[1], siblings[2]
 }
 
 var (
-	rootChildAsObject = func(o Object) Object {
+	rootChildAsObject = func(o manifold.Object) manifold.Object {
 		return o
 	}
 
-	rootChildAsTreeNode = func(o Object) Object {
+	rootChildAsTreeNode = func(o manifold.Object) manifold.Object {
 		return o.Root()
 	}
 )
 
-func rootWithSiblings(fn func(Object) Object) (Object, Object, Object, Object) {
+func rootWithSiblings(fn func(manifold.Object) manifold.Object) (manifold.Object, manifold.Object, manifold.Object, manifold.Object) {
 	root := New("root")
 	c1 := New("c1")
 	c2 := New("c2")
@@ -196,7 +197,7 @@ func rootWithSiblings(fn func(Object) Object) (Object, Object, Object, Object) {
 	return root, c1, c2, c3
 }
 
-func childNodeNames(t TreeNode) []string {
+func childNodeNames(t manifold.TreeNode) []string {
 	childNodes := t.Children()
 	names := make([]string, len(childNodes))
 	for i, c := range childNodes {

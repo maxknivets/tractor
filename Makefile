@@ -1,4 +1,4 @@
-.PHONY: build setup clobber dev versions studio
+.PHONY: build setup clobber dev versions studio kill
 
 build: clobber local/bin/tractor-agent local/bin/tractor 
 
@@ -7,6 +7,10 @@ setup: local/workspace local/bin studio
 
 dev:
 	./local/bin/tractor-agent --dev
+
+kill:
+	@killall node || true
+	@killall tractor-agent || true
 
 clobber:
 	rm -rf local/bin/tractor 
@@ -34,7 +38,8 @@ local/workspace:
 	cp -r data/workspace local/workspace
 	mv local/workspace/workspace.go.data local/workspace/workspace.go
 	mkdir -p ~/.tractor/workspaces
-	ln -s $(PWD)/local/workspace ~/.tractor/workspaces/dev
+	rm ~/.tractor/workspaces/dev || true
+	ln -fs $(PWD)/local/workspace ~/.tractor/workspaces/dev
 
 studio: studio/node_modules studio/extension/lib studio/shell/src-gen
 

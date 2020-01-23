@@ -18,9 +18,9 @@ These are instructions for development, which is the only way to use Tractor rig
    * g++
  * for mac: 
    * XCode Command Line Tools
-   * larger open file limit (`sudo ulimit -n 2048`)
+   * larger open file limit (`ulimit -n 2048`)
 
-See what versions you have with:
+See what versions you have with `make versions`:
 ```
 $ make versions
 go version go1.13.3 darwin/amd64
@@ -31,7 +31,7 @@ typescript Version 3.0.3
 ```
 Node is a tricky one because it must be less than version 12, which 
 apparently means the 10.x line. On OS X installing with `brew install node@10`
-may still result in version 12. You may need to force brew link the older version.
+may still result in version 12. You may need to force `brew link` the older version.
 
 ### Setup
 You first need to clone and link qtalk:

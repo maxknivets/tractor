@@ -1,7 +1,6 @@
 const { Column, Control, Checkbox, Input, Message, Delete, Box, Heading, Content, List, Dropdown, Breadcrumb, Button, Icon, Level } = rbx;
 
 const RetryInterval = 500;
-let componentPaths = {};
 
 function scheduleRetry(fn) {
 	setTimeout(fn, RetryInterval);
@@ -18,7 +17,7 @@ class InspectorContainer extends React.Component {
           nodePaths: {},
           components: []
         },
-        nodeId: undefined
+        lastSelected: undefined
       };
 
       
@@ -51,15 +50,18 @@ class InspectorContainer extends React.Component {
         window.rpc = this.client;
 		this.api.handle("shutdown", {
 			"serveRPC": async (r, c) => {
-                this.messages.info("DEBUG: reload/shutdown received...");
-				setTimeout(() => this.connectWorkspace(socketPath), 4000); // TODO: something better
+                console.log("DEBUG: reload/shutdown received...");
+                scheduleRetry(() => this.connectWorkspace(socketPath));
+				r.return();
 			}
         });
         this.api.handle("state", {
 			"serveRPC": async (r, c) => {
                 var data = await c.decode();
                 this.setState({"remote": data});
-                componentPaths = data.componentPaths;
+                if (data.selectedNode && !this.state.lastSelected) {
+                    this.setState({"lastSelected": data.selectedNode});
+                }
                 r.return();
 			}
         });
@@ -71,19 +73,14 @@ class InspectorContainer extends React.Component {
       InspectorContainer.instance = this;
     }
 
-    selectedNode() {
-      if (this.state.nodeId === undefined) {
-        return;
-      }
-      return this.state.remote.nodes[this.state.nodeId];
-    }
-
     render() {
         let node = undefined;
         if (this.state.remote.selectedNode) {
             node = this.state.remote.nodes[this.state.remote.selectedNode];
+        } else {
+            node = this.state.remote.nodes[this.state.lastSelected];
         }
-      return <Inspector node={node} components={this.state.remote.components} />;
+        return <Inspector node={node} components={this.state.remote.components} />;
     }
   }
 
@@ -94,15 +91,13 @@ function remoteAction(action, params) {
         case "callMethod":
         case "removeComponent":
         case "appendComponent":
+        case "reloadComponent":
         case "addDelegate":
             //console.log(action, params);
             window.rpc.call(action, params);
             return;
-        case "editComponent":
-            if (params.Component !== "Delegate") {
-                params.Filepath = componentPaths[params.Component];
-            }
-            window.theia.postMessage({event: 'edit', params: params});
+        case "edit":
+            window.theia.postMessage({event: 'edit', path: params.path});
             return;
         default:
             throw "unknown action: "+action;
@@ -256,7 +251,8 @@ function ComponentManageMenu(props) {
             </Dropdown.Trigger>
             <Dropdown.Menu>
                 <Dropdown.Content>
-                    <Dropdown.Item onClick={() => remoteAction("editComponent", {ID: props.nodeId, Component: props.component.name})}>Edit</Dropdown.Item>
+                <Dropdown.Item onClick={() => remoteAction("reloadComponent", {ID: props.nodeId, Component: props.component.name})}>Reload</Dropdown.Item>
+                    <Dropdown.Item onClick={() => remoteAction("edit", {path: props.component.filepath})}>Edit</Dropdown.Item>
                     <Dropdown.Item onClick={() => remoteAction("removeComponent", {ID: props.nodeId, Component: props.component.name})}>Delete</Dropdown.Item>
                 </Dropdown.Content>
             </Dropdown.Menu>
@@ -272,7 +268,7 @@ function ComponentInspector(props) {
         overflow: "auto", 
         paddingBottom: open ? "15px" : "0"
     };
-    let heading = "Delegate"
+    let heading = "Main"
     if (props.component !== undefined) {
         heading = props.component.name;
     }
@@ -289,7 +285,7 @@ function ComponentInspector(props) {
                 <Content>
                     {props.delegate &&
                         <Button size="small" onClick={() => remoteAction("addDelegate", {ID: props.nodeId})}>
-                            Add Delegate
+                            Add Main
                         </Button>
                     }
                     {props.component &&
@@ -398,7 +394,7 @@ function AddComponentButton(props) {
     })
     function onClicker(component) {
         return () => {
-            remoteAction("appendComponent", {Name: component, ID: props.nodeId});
+            remoteAction("appendComponent", {Name: component.Name, ID: props.nodeId});
             setOpen(false);
         };
     }
@@ -418,7 +414,7 @@ function AddComponentButton(props) {
                         </Dropdown.Item>
                         <Dropdown.Item as="div" style={{maxHeight: "100px", overflowY: "scroll", textAlign: "left"}}>
                             {(props.components||[]).map((item, idx) =>
-                                <div key={idx} onClick={onClicker(item)}>{item}</div>
+                                <div key={idx} onClick={onClicker(item)}>{item.Name}</div>
                             )}
                         </Dropdown.Item>
                     </Dropdown.Content>
@@ -430,7 +426,7 @@ function AddComponentButton(props) {
 
 function Inspector(props) {
     const node = props.node || {name: "no node", components: []};
-    const delegatePlaceholder = (props.node && (node.components.length === 0 || node.components[0].name !== "Delegate"));
+    const delegatePlaceholder = (props.node && (node.components.length === 0 || node.components[0].name !== "Main"));
     let ancestors = [];
     if (node.path) {
         ancestors = node.path.split("/");
@@ -453,8 +449,8 @@ function Inspector(props) {
                     <ComponentInspector component={com} nodeId={props.node.id} key={"com-"+idx} />
                 )}
             </List>
-            {props.node &&
-                <AddComponentButton components={props.components} nodeId={props.node.id} />
+            {//props.node &&
+              //  <AddComponentButton components={props.components} nodeId={props.node.id} />
             }
             
         </section>

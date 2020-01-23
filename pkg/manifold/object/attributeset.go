@@ -1,4 +1,4 @@
-package manifold
+package object
 
 type attributeset map[string]interface{}
 

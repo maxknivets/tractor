@@ -1,4 +1,4 @@
-package manifold
+package object
 
 import (
 	"errors"
@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/manifold/tractor/pkg/manifold"
 	"github.com/manifold/tractor/pkg/misc/debouncer"
 	"github.com/manifold/tractor/pkg/misc/registry"
 	"github.com/rs/xid"
@@ -18,37 +19,28 @@ func newObject(name string) *object {
 		id:           xid.New().String(),
 		name:         name,
 		path:         "/",
-		observers:    make(map[*ObjectObserver]struct{}),
+		observers:    make(map[*manifold.ObjectObserver]struct{}),
 		attributeset: attributeset(make(map[string]interface{})),
 		componentlist: componentlist{
-			components: make([]Component, 0),
+			components: make([]manifold.Component, 0),
 		},
 		notifyDebounce: debouncer.New(1000 * time.Millisecond),
 	}
 	return obj
 }
 
-func fromSnapshot(snapshot ObjectSnapshot) *object {
+func fromSnapshot(snapshot manifold.ObjectSnapshot) *object {
 	obj := newObject(snapshot.Name)
 	obj.id = snapshot.ID
 	obj.attributeset = attributeset(snapshot.Attrs)
-	for _, comSnap := range snapshot.Components {
-		com := newComponent(comSnap.Name, comSnap.Value)
-		com.enabled = comSnap.Enabled
-		com.id = comSnap.ID
-		obj.components = append(obj.components, com)
-		if snapshot.Main != "" && comSnap.Name == snapshot.Main {
-			obj.main = com
-		}
-	}
 	return obj
 }
 
-func FromSnapshot(snapshot ObjectSnapshot) Object {
+func FromSnapshot(snapshot manifold.ObjectSnapshot) manifold.Object {
 	return fromSnapshot(snapshot)
 }
 
-func New(name string) Object {
+func New(name string) manifold.Object {
 	return newObject(name)
 }
 
@@ -56,14 +48,14 @@ type object struct {
 	componentlist
 	attributeset
 
-	parent   Object
-	children []Object
+	parent   manifold.Object
+	children []manifold.Object
 
 	id        string
 	name      string
 	path      string
-	observers map[*ObjectObserver]struct{}
-	main      Component
+	observers map[*manifold.ObjectObserver]struct{}
+	main      manifold.Component
 	registry  *registry.Registry
 	mu        sync.Mutex
 
@@ -126,7 +118,7 @@ func (o *object) Path() string {
 	// o.mu.Lock()
 	// defer o.mu.Unlock()
 	parts := []string{}
-	var obj Object = o
+	var obj manifold.Object = o
 	for obj.Parent() != nil {
 		parts = append([]string{obj.Name()}, parts...)
 		obj = obj.Parent()
@@ -139,36 +131,42 @@ func (o *object) Subpath(names ...string) string {
 	return path.Join(append(parts, names...)...)
 }
 
-func (o *object) FindChild(subpath string) Object {
+func (o *object) FindChild(subpath string) manifold.Object {
 	parts := strings.Split(subpath, "/")
-	if len(parts) == 1 {
-		if parts[0] == "." {
-			return o
-		}
-		if parts[0] == ".." {
-			if o.Parent() == nil {
-				return nil
-			}
-			return o.Parent()
-		}
-		for _, child := range o.Children() {
-			if child.Name() == parts[0] {
-				return child
-			}
-		}
+	if len(parts) == 0 {
 		return nil
 	}
-	var obj Object = o
-	for _, part := range parts {
-		obj = obj.FindChild(part)
-		if obj == nil {
+	if parts[0] == "" && len(parts) > 1 {
+		return o.Root().FindChild(strings.Join(parts[1:], "/"))
+	}
+	if parts[0] == ".." {
+		if o.parent == nil {
 			return nil
 		}
+		if len(parts) == 1 {
+			return o.parent
+		}
+		return o.parent.FindChild(strings.Join(parts[1:], "/"))
 	}
-	return obj
+	if o.Component(parts[0]) != nil {
+		return o
+	}
+	var child manifold.Object
+	for _, c := range o.Children() {
+		if c.Name() == parts[0] {
+			child = c
+		}
+	}
+	if child == nil {
+		return nil
+	}
+	if len(parts) == 1 {
+		return child
+	}
+	return child.FindChild(strings.Join(parts[1:], "/"))
 }
 
-func (o *object) FindPointer(ptr interface{}) Object {
+func (o *object) FindPointer(ptr interface{}) manifold.Object {
 	for _, com := range o.Components() {
 		if com.Pointer() == ptr {
 			return o
@@ -182,23 +180,23 @@ func (o *object) FindPointer(ptr interface{}) Object {
 	return nil
 }
 
-func (o *object) Observe(obs *ObjectObserver) {
+func (o *object) Observe(obs *manifold.ObjectObserver) {
 	o.observerMu.Lock()
 	defer o.observerMu.Unlock()
 	o.observers[obs] = struct{}{}
 }
 
-func (o *object) Unobserve(obs *ObjectObserver) {
+func (o *object) Unobserve(obs *manifold.ObjectObserver) {
 	o.observerMu.Lock()
 	defer o.observerMu.Unlock()
 	delete(o.observers, obs)
 }
 
-func (o *object) Main() Component {
+func (o *object) Main() manifold.Component {
 	return o.main
 }
 
-func (o *object) SetMain(com Component) {
+func (o *object) SetMain(com manifold.Component) {
 	if !o.HasComponent(com) {
 		o.InsertComponentAt(0, com)
 	}
@@ -209,11 +207,11 @@ func (o *object) SetMain(com Component) {
 	}
 }
 
-func (o *object) FindID(id string) Object {
+func (o *object) FindID(id string) manifold.Object {
 	return findChildID(o, id)
 }
 
-func findChildID(p Object, id string) Object {
+func findChildID(p manifold.Object, id string) manifold.Object {
 	for _, child := range p.Children() {
 		if child.ID() == id {
 			return child
@@ -227,7 +225,7 @@ func findChildID(p Object, id string) Object {
 	return nil
 }
 
-func (o *object) RemoveID(id string) Object {
+func (o *object) RemoveID(id string) manifold.Object {
 	obj := o.FindID(id)
 	if obj == nil {
 		return nil
@@ -239,11 +237,11 @@ func (o *object) RemoveID(id string) Object {
 // TODO: rethink this
 // NOTE: this is because you can't use registry to create references to Nodes
 type ComponentInitializer interface {
-	InitializeComponent(o Object)
+	InitializeComponent(o manifold.Object)
 }
 
 func (o *object) UpdateRegistry() (err error) {
-	entries := []interface{}{Object(o)}
+	entries := []interface{}{manifold.Object(o)}
 	for _, com := range o.Components() {
 		entries = append(entries, com.Pointer())
 		initializer, ok := com.Pointer().(ComponentInitializer)
@@ -255,8 +253,8 @@ func (o *object) UpdateRegistry() (err error) {
 	return
 }
 
-func (o *object) Snapshot() ObjectSnapshot {
-	obj := ObjectSnapshot{
+func (o *object) Snapshot() manifold.ObjectSnapshot {
+	obj := manifold.ObjectSnapshot{
 		ID:    o.ID(),
 		Name:  o.Name(),
 		Attrs: o.attributeset,
@@ -265,7 +263,7 @@ func (o *object) Snapshot() ObjectSnapshot {
 		obj.ParentID = o.Parent().ID()
 	}
 	if o.Main() != nil {
-		obj.Main = o.Main().Name()
+		obj.Main = o.Main().ID()
 	}
 	for _, child := range o.Children() {
 		obj.Children = append(obj.Children, []string{child.ID(), child.Name()})

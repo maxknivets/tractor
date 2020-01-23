@@ -1,30 +1,32 @@
-package manifold
+package object
 
 import (
 	"fmt"
+
+	"github.com/manifold/tractor/pkg/manifold"
 )
 
 type privTreeNode interface {
-	Object
-	setChildren(ch []Object)
+	manifold.Object
+	setChildren(ch []manifold.Object)
 }
 
 type treeNode struct {
-	object Object
+	object manifold.Object
 }
 
-func (o *object) Root() Object {
+func (o *object) Root() manifold.Object {
 	if o.parent != nil {
 		return o.parent.Root()
 	}
 	return o
 }
 
-func (o *object) Parent() Object {
+func (o *object) Parent() manifold.Object {
 	return o.parent
 }
 
-func (o *object) SetParent(obj Object) {
+func (o *object) SetParent(obj manifold.Object) {
 	old := o.parent
 	if old != obj {
 		o.parent = obj
@@ -54,7 +56,7 @@ func (o *object) SetSiblingIndex(idx int) error {
 
 	parent, ok := o.parent.(privTreeNode)
 	if !ok {
-		return fmt.Errorf("parent type %T must implement setChildren([]Object)", o.parent)
+		return fmt.Errorf("parent type %T must implement setChildren([]manifold.Object)", o.parent)
 	}
 
 	siblings := parent.Children()
@@ -68,7 +70,7 @@ func (o *object) SetSiblingIndex(idx int) error {
 	}
 
 	oldChildren := append(siblings[:oldIndex], siblings[oldIndex+1:]...)
-	newChildren := make([]Object, idx+1)
+	newChildren := make([]manifold.Object, idx+1)
 	copy(newChildren, oldChildren[:idx])
 	newChildren[idx] = o
 	parent.setChildren(append(newChildren, oldChildren[idx:]...))
@@ -77,11 +79,11 @@ func (o *object) SetSiblingIndex(idx int) error {
 	return nil
 }
 
-func (o *object) setChildren(ch []Object) {
+func (o *object) setChildren(ch []manifold.Object) {
 	o.children = ch
 }
 
-func (o *object) NextSibling() Object {
+func (o *object) NextSibling() manifold.Object {
 	if o.parent == nil {
 		return nil
 	}
@@ -94,7 +96,7 @@ func (o *object) NextSibling() Object {
 	return nil
 }
 
-func (o *object) PreviousSibling() Object {
+func (o *object) PreviousSibling() manifold.Object {
 	if o.parent == nil {
 		return nil
 	}
@@ -111,13 +113,13 @@ func (o *object) PreviousSibling() Object {
 	return siblings[prev]
 }
 
-func (o *object) Children() []Object {
-	ch := make([]Object, len(o.children))
+func (o *object) Children() []manifold.Object {
+	ch := make([]manifold.Object, len(o.children))
 	copy(ch, o.children)
 	return ch
 }
 
-func (o *object) RemoveChildAt(idx int) Object {
+func (o *object) RemoveChildAt(idx int) manifold.Object {
 	child := o.ChildAt(idx)
 	if child == nil {
 		return nil
@@ -132,7 +134,7 @@ func (o *object) RemoveChildAt(idx int) Object {
 	return child
 }
 
-func (o *object) InsertChildAt(idx int, child Object) {
+func (o *object) InsertChildAt(idx int, child manifold.Object) {
 	if idx < 0 {
 		panic(fmt.Sprintf("cannot insert child to index: %d", idx))
 	}
@@ -146,10 +148,10 @@ func (o *object) InsertChildAt(idx int, child Object) {
 	}
 
 	o.children = append(o.children[:idx],
-		append([]Object{child}, o.children[idx:]...)...)
+		append([]manifold.Object{child}, o.children[idx:]...)...)
 }
 
-func (o *object) RemoveChild(child Object) {
+func (o *object) RemoveChild(child manifold.Object) {
 	idx := o.childIndex(child)
 	if idx < 0 {
 		return
@@ -158,20 +160,20 @@ func (o *object) RemoveChild(child Object) {
 	o.notify(o, "::Children", child, nil)
 }
 
-func (o *object) AppendChild(child Object) {
+func (o *object) AppendChild(child manifold.Object) {
 	child.SetParent(o)
 	o.children = append(o.children, child)
 	o.notify(o, "::Children", nil, child)
 }
 
-func (o *object) ChildAt(idx int) Object {
+func (o *object) ChildAt(idx int) manifold.Object {
 	if idx > -1 && len(o.children) > idx {
 		return o.children[idx]
 	}
 	return nil
 }
 
-func (o *object) childIndex(child Object) int {
+func (o *object) childIndex(child manifold.Object) int {
 	for i, c := range o.children {
 		if c == child {
 			return i

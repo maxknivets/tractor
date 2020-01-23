@@ -1,4 +1,4 @@
-package manifold
+package library
 
 import (
 	"errors"
@@ -22,7 +22,7 @@ func (c *testComponent) Err(msg string) (interface{}, error) {
 func TestComponent(t *testing.T) {
 	t.Run("GetSetFields", func(t *testing.T) {
 		obj := &testComponent{Foo: "foo"}
-		com := newComponent("test", obj)
+		com := newComponent("test", obj, "")
 		v, _ := com.GetField("Foo")
 		assert.Equal(t, "foo", v)
 		com.SetField("Foo", "bar")
@@ -30,7 +30,7 @@ func TestComponent(t *testing.T) {
 	})
 	t.Run("CallMethod", func(t *testing.T) {
 		obj := &testComponent{Foo: "foo"}
-		com := newComponent("test", obj)
+		com := newComponent("test", obj, "")
 
 		var echoRet []string
 		noerr := com.CallMethod("Echo", []interface{}{"1", "2", "3"}, &echoRet)

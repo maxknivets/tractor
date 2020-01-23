@@ -50,6 +50,8 @@ export class TractorService implements WidgetFactory {
     protected client: qrpc.Client;
     protected api: qrpc.API;
 
+    public components: any[];
+
     protected widget?: TractorTreeWidget;
     protected readonly onDidChangeEmitter = new Emitter<ObjectNode[]>();
     protected readonly onDidChangeOpenStateEmitter = new Emitter<boolean>();
@@ -94,6 +96,7 @@ export class TractorService implements WidgetFactory {
     }
 
     async connectWorkspace(socketPath: string) {
+        this.logger.warn("attempting connect");
 		try {
 			var conn = await qmux.DialWebsocket("ws://localhost:3001"+socketPath);
 		} catch (e) {
@@ -106,14 +109,15 @@ export class TractorService implements WidgetFactory {
 		this.client = new qrpc.Client(session, this.api);
 		this.api.handle("shutdown", {
 			"serveRPC": async (r, c) => {
-                this.messages.info("DEBUG: reload/shutdown received...");
-				setTimeout(() => this.connectWorkspace(socketPath), 4000); // TODO: something better
+                scheduleRetry(() => this.connectWorkspace(socketPath));
+                r.return();
 			}
         });
         this.api.handle("state", {
 			"serveRPC": async (r, c) => {
                 var data = await c.decode();
-                this.logger.warn(data);
+                //this.logger.warn(data);
+                this.components = data.components;
                 if (this.widget) {
                     this.widget.setData(data);
                     this.onDidChangeEmitter.fire(this.widget.rootObjects());
@@ -144,6 +148,10 @@ export class TractorService implements WidgetFactory {
 
 	deleteNode(id: string) {
 		this.client.call("deleteNode", id);
+    }
+
+    addComponent(component: string, nodeId: string) {
+        this.client.call("appendComponent", {ID: nodeId, Name: component});
     }
     
 

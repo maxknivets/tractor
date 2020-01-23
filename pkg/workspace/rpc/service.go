@@ -50,6 +50,7 @@ func (s *Service) InitializeDaemon() (err error) {
 	s.api.HandleFunc("reload", s.Reload())
 	s.api.HandleFunc("selectNode", s.SelectNode())
 	s.api.HandleFunc("removeComponent", s.RemoveComponent())
+	s.api.HandleFunc("reloadComponent", s.ReloadComponent())
 	s.api.HandleFunc("selectProject", s.SelectProject())
 	s.api.HandleFunc("moveNode", s.MoveNode())
 	s.api.HandleFunc("subscribe", s.Subscribe())

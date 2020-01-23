@@ -44,7 +44,7 @@ func (s *Service) InitializeDaemon() (err error) {
 			return err
 		}
 	}
-	for _, path := range collectDirs("./lib", nil) {
+	for _, path := range collectDirs("./stdlib", nil) {
 		err = s.watcher.Add(path)
 		if err != nil {
 			return err

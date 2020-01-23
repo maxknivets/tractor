@@ -1,14 +1,15 @@
-package manifold
+package object
 
 import (
 	"strings"
 	"testing"
 
+	"github.com/manifold/tractor/pkg/manifold"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func testObj(name string) Object {
+func testObj(name string) manifold.Object {
 	obj := New(name)
 	obj.(*object).notifyDebounce = nil
 	return obj
@@ -67,11 +68,11 @@ func TestObserveObject(t *testing.T) {
 	})
 }
 
-func assertObserve(t *testing.T, subject Object, changed Object, subpath string, old, new interface{}, action func()) {
+func assertObserve(t *testing.T, subject manifold.Object, changed manifold.Object, subpath string, old, new interface{}, action func()) {
 	notified := false
 	t.Logf("assert oberserver %q %+v", t.Name(), changed.Subpath(subpath))
-	subject.Observe(&ObjectObserver{
-		OnChange: func(obj Object, path string, o, n interface{}) {
+	subject.Observe(&manifold.ObjectObserver{
+		OnChange: func(obj manifold.Object, path string, o, n interface{}) {
 			if obj != changed || !strings.HasSuffix(path, subpath) {
 				return
 			}

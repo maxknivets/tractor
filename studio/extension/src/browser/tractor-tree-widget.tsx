@@ -68,7 +68,7 @@ export const TractorTreeWidgetFactory = Symbol('TractorTreeWidgetFactory');
 @injectable()
 export class TractorTreeWidget extends TreeWidget {
     static readonly ID = 'tractor:tree';
-    static readonly LABEL = 'Tractor';
+    static readonly LABEL = 'Objects';
 
     readonly onDidChangeOpenStateEmitter = new Emitter<boolean>();
 
@@ -80,8 +80,8 @@ export class TractorTreeWidget extends TreeWidget {
         super(treeProps, model, contextMenuRenderer);
 
         this.id = 'tractor-view';
-        this.title.label = 'Tractor';
-        this.title.caption = 'Tractor';
+        this.title.label = 'Objects';
+        this.title.caption = 'Objects';
         this.title.closable = true;
         this.title.iconClass = 'fa fas fa-project-diagram';
         this.addClass('theia-outline-view');

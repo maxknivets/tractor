@@ -18,7 +18,11 @@ type RegisteredComponent struct {
 }
 
 func (rc *RegisteredComponent) New() manifold.Component {
-	return manifold.NewComponent(rc.Type.Name(), reflected.New(rc.Type).Interface())
+	return NewComponent(rc.Type.Name(), rc.NewValue(), rc.ID)
+}
+
+func (rc *RegisteredComponent) NewValue() interface{} {
+	return reflected.New(rc.Type).Interface()
 }
 
 func Register(v interface{}, id, filepath string) {
@@ -32,6 +36,7 @@ func Register(v interface{}, id, filepath string) {
 	})
 }
 
+// deprecated
 func Names() []string {
 	var names []string
 	for _, rc := range registered {
@@ -41,6 +46,12 @@ func Names() []string {
 		names = append(names, rc.Type.Name())
 	}
 	return names
+}
+
+func Registered() []*RegisteredComponent {
+	r := make([]*RegisteredComponent, len(registered))
+	copy(r, registered)
+	return r
 }
 
 func Lookup(name string) *RegisteredComponent {

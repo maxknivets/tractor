@@ -7,6 +7,7 @@ import { AbstractViewContribution } from '@theia/core/lib/browser';
 import { TabBarToolbarContribution, TabBarToolbarRegistry } from '@theia/core/lib/browser/shell/tab-bar-toolbar';
 import { Command, CommandRegistry } from '@theia/core/lib/common/command';
 import { MenuPath } from '@theia/core/lib/common';
+import { QuickPickService } from '@theia/core/lib/browser/quick-open';
 import { CompositeTreeNode } from '@theia/core/lib/browser/tree';
 import { Widget } from '@theia/core/lib/browser/widgets';
 import { WidgetManager } from '@theia/core/lib/browser';
@@ -33,6 +34,10 @@ export namespace TractorCommands {
     export const RENAME_NODE: Command = {
         id: 'tractor:node-rename',
         label: 'Rename'
+    };
+    export const ADD_COMPONENT: Command = {
+        id: 'tractor:component-add',
+        label: 'Add Component...'
     };
 }
 
@@ -66,10 +71,13 @@ export class TractorContribution extends AbstractViewContribution<TractorTreeWid
     protected readonly tractor: TractorService;
     
     @inject(MessageService)
-    protected readonly messageService!: MessageService;
+    protected readonly messages: MessageService;
 
     @inject(WidgetManager)
     protected readonly widgets: WidgetManager;
+
+    @inject(QuickPickService)
+    protected readonly quickpick: QuickPickService;
 
     @inject(ILogger)
     protected readonly logger: ILogger;
@@ -139,6 +147,16 @@ export class TractorContribution extends AbstractViewContribution<TractorTreeWid
             },
             isEnabled: () => true,
             isVisible: () => true
+        });
+        commands.registerCommand(TractorCommands.ADD_COMPONENT, {
+            execute: () => {
+                let node = (this.shell.currentWidget as TractorTreeWidget).model.selectedNodes[0];
+                if (node) {
+                    this.quickpick.show(this.tractor.components.map((el)=>el.name)).then((selection) => {
+                        this.tractor.addComponent(selection, node.id);
+                    })
+                }
+            }
         });
         commands.registerCommand(TractorCommands.ADD_NODE, {
             execute: () => {
@@ -212,6 +230,9 @@ export class TractorContribution extends AbstractViewContribution<TractorTreeWid
             commandId: TractorCommands.ADD_NODE.id
         });
         
+        menus.registerMenuAction(TractorContextMenu.WORKSPACE, {
+            commandId: TractorCommands.ADD_COMPONENT.id
+        });
 
         menus.registerMenuAction(TractorContextMenu.MODIFICATION, {
             commandId: TractorCommands.DELETE_NODE.id

@@ -29,9 +29,10 @@ type Button struct {
 }
 
 type Component struct {
-	Name    string   `msgpack:"name"`
-	Fields  []Field  `msgpack:"fields"`
-	Buttons []Button `msgpack:"buttons"`
+	Name     string   `msgpack:"name"`
+	Filepath string   `msgpack:"filepath"`
+	Fields   []Field  `msgpack:"fields"`
+	Buttons  []Button `msgpack:"buttons"`
 }
 
 type Node struct {
@@ -52,8 +53,7 @@ type Project struct {
 type State struct {
 	Projects       []Project         `msgpack:"projects"`
 	CurrentProject string            `msgpack:"currentProject"`
-	Components     []string          `msgpack:"components"`
-	ComponentPaths map[string]string `msgpack:"componentPaths"`
+	Components     []ComponentType   `msgpack:"components"`
 	Hierarchy      []string          `msgpack:"hierarchy"`
 	Nodes          map[string]Node   `msgpack:"nodes"`
 	NodePaths      map[string]string `msgpack:"nodePaths"`
@@ -278,9 +278,10 @@ func (s *State) Update(root manifold.Object) {
 			}
 
 			node.Components = append(node.Components, Component{
-				Name:    com.Name(),
-				Fields:  fields,
-				Buttons: buttons,
+				Name:     com.Name(),
+				Filepath: library.Lookup(com.Name()).Filepath,
+				Fields:   fields,
+				Buttons:  buttons,
 			})
 		}
 		s.Nodes[n.ID()] = node
@@ -288,17 +289,23 @@ func (s *State) Update(root manifold.Object) {
 	})
 }
 
+type ComponentType struct {
+	Filepath string `msgpack:"filepath"`
+	Name     string `msgpack:"name"`
+}
+
 func New(root manifold.Object) *State {
 	state := &State{
 		Projects:       []Project{},
 		CurrentProject: "dev",
-		Components:     library.Names(),
 		Nodes:          make(map[string]Node),
 		NodePaths:      make(map[string]string),
-		ComponentPaths: make(map[string]string),
 	}
-	for _, name := range state.Components {
-		state.ComponentPaths[name] = library.Lookup(name).Filepath
+	for _, com := range library.Registered() {
+		state.Components = append(state.Components, ComponentType{
+			Name:     com.Type.Name(),
+			Filepath: com.Filepath,
+		})
 	}
 	state.Update(root)
 	return state

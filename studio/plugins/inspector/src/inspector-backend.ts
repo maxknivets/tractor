@@ -97,17 +97,9 @@ class InspectorPanel {
             (message: any) => {
                 switch (message.event) {
                     case 'edit':
-                        if (message.Filepath !== undefined) {
-                            theia.window.showTextDocument(theia.Uri.file(message.Filepath));
+                        if (message.path !== undefined) {
+                            theia.window.showTextDocument(theia.Uri.file(message.path));
                             return;
-                        }
-                        if (message.params.Component === "Delegate") {
-                            let folders = theia.workspace.workspaceFolders;
-                            if (folders) {
-                                theia.window.showTextDocument(theia.Uri.file(path.join(folders[0].uri.path, 'delegates', message.params.ID, 'delegate.go')));
-                            }
-                        } else {
-                            theia.window.showTextDocument(theia.Uri.file(message.params.Filepath));
                         }
                         return;
 

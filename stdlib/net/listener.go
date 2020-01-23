@@ -11,13 +11,19 @@ type TCPListener struct {
 	l net.Listener
 }
 
-func (c *TCPListener) PreInitialize() {
+func (c *TCPListener) OnEnable() {
 	log.Printf("tcp listener at %s\n", c.Address)
 	var err error
 	c.l, err = net.Listen("tcp", c.Address)
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+func (c *TCPListener) OnDisable() {
+    if c.l != nil {
+        c.l.Close()
+    }
 }
 
 func (c *TCPListener) Accept() (net.Conn, error) {

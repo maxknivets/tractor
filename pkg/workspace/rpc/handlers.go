@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/manifold/qtalk/qrpc"
-	"github.com/manifold/tractor/pkg/manifold"
 	"github.com/manifold/tractor/pkg/manifold/library"
+	"github.com/manifold/tractor/pkg/manifold/object"
 )
 
 type AppendNodeParams struct {
@@ -80,10 +80,48 @@ func (s *Service) RemoveComponent() func(qrpc.Responder, *qrpc.Call) {
 			r.Return(fmt.Errorf("unable to find node: %s", params.ID))
 			return
 		}
-		n.RemoveComponent(n.Component(params.Component))
+		com := n.Component(params.Component)
+		n.RemoveComponent(com)
+		if com.ID() == n.ID() {
+			if err := s.State.Image.DestroyObjectPackage(n); err != nil {
+				fmt.Println(err)
+			}
+		}
 		s.updateView()
 		r.Return(nil)
 	}
+}
+
+func (s *Service) ReloadComponent() func(qrpc.Responder, *qrpc.Call) {
+	return func(r qrpc.Responder, c *qrpc.Call) {
+		var params RemoveComponentParams
+		err := c.Decode(&params)
+		if err != nil {
+			r.Return(err)
+			return
+		}
+		n := s.State.Root.FindID(params.ID)
+		if n == nil {
+			r.Return(fmt.Errorf("unable to find node: %s", params.ID))
+			return
+		}
+		com := n.Component(params.Component)
+		if e, ok := com.Pointer().(disabler); ok {
+			e.OnDisable()
+		}
+		if e, ok := com.Pointer().(enabler); ok {
+			e.OnEnable()
+		}
+		s.updateView()
+		r.Return(nil)
+	}
+}
+
+type enabler interface {
+	OnEnable()
+}
+type disabler interface {
+	OnDisable()
 }
 
 func (s *Service) AddDelegate() func(qrpc.Responder, *qrpc.Call) {
@@ -185,6 +223,7 @@ func (s *Service) SetValue() func(qrpc.Responder, *qrpc.Call) {
 			return
 		}
 		n := s.State.Root.FindChild(params.Path)
+		//fmt.Println(n, params)
 		localPath := params.Path[len(n.Path())+1:]
 		switch {
 		case params.IntValue != nil:
@@ -270,7 +309,7 @@ func (s *Service) AppendNode() func(qrpc.Responder, *qrpc.Call) {
 		if p == nil {
 			p = s.State.Root
 		}
-		n := manifold.New(params.Name)
+		n := object.New(params.Name)
 		p.AppendChild(n)
 		s.updateView()
 		r.Return(nil)
