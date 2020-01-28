@@ -10,7 +10,6 @@ These are instructions for development, which is the only way to use Tractor rig
  * make
  * yarn `npm i -g yarn`
  * typescript `yarn global add typescript`
-
  * for linux: 
    * gtk+3.0-dev
    * webkit2gtk-dev

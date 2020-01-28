@@ -1,7 +1,6 @@
 package file
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -68,7 +67,6 @@ func (c *Explorer) ComponentEnable() {
 	}
 
 	if c.Watcher == nil {
-		fmt.Println("NEW WATCHER")
 		c.Watcher = watcher.New()
 		c.Watcher.IgnoreHiddenFiles(true)
 		c.Watcher.FilterOps(watcher.Create, watcher.Move, watcher.Rename, watcher.Remove)
@@ -95,7 +93,6 @@ func (c *Explorer) handleChanges() {
 	for {
 		select {
 		case event := <-c.Watcher.Event:
-			fmt.Println(event)
 			e, ok := c.childExplorers[filepath.Dir(event.Path)]
 			if !ok {
 				panic("no explorer for path " + event.Path)

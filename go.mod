@@ -1,6 +1,6 @@
 module github.com/manifold/tractor
 
-go 1.12
+go 1.13
 
 require (
 	github.com/armon/circbuf v0.0.0-20190214190532-5111143e8da2
@@ -48,5 +48,7 @@ require (
 	gopkg.in/sorcix/irc.v2 v2.0.0-20190306112350-8d7a73540b90
 	gopkg.in/vmihailenco/msgpack.v2 v2.9.1 // indirect
 )
+
+replace github.com/manifold/qtalk => ./qtalk
 
 replace github.com/dustin/go-jsonpointer => ./vnd/github.com/dustin/go-jsonpointer
