@@ -106,23 +106,16 @@ func (s *Service) ReloadComponent() func(qrpc.Responder, *qrpc.Call) {
 			return
 		}
 		com := n.Component(params.Component)
-		if e, ok := com.Pointer().(disabler); ok {
-			e.ComponentDisable()
-		}
-		if e, ok := com.Pointer().(enabler); ok {
-			e.ComponentEnable()
-		}
+		if com != nil {
+			if err := com.Reload(); err != nil {
+				r.Return(err)
+				return
+			}
+		}		
 		n.UpdateRegistry()
 		s.updateView()
 		r.Return(nil)
 	}
-}
-
-type enabler interface {
-	ComponentEnable()
-}
-type disabler interface {
-	ComponentDisable()
 }
 
 func (s *Service) AddDelegate() func(qrpc.Responder, *qrpc.Call) {

@@ -20,6 +20,18 @@ type component struct {
 	enabled bool
 	value   interface{}
 	typed   bool
+	loaded  bool // if Reload has been called once
+}
+
+type ComponentEnabler interface {
+	ComponentEnable()
+}
+type ComponentDisabler interface {
+	ComponentDisable()
+}
+
+type ChildProvider interface {
+	ChildNodes() []manifold.Object
 }
 
 func newComponent(name string, value interface{}, id string) *component {
@@ -173,6 +185,27 @@ func (c *component) Pointer() interface{} {
 
 func (c *component) Type() reflect.Type {
 	return reflect.TypeOf(c.Pointer())
+}
+
+func (c *component) Reload() error {
+	if c.loaded && c.enabled {
+		if e, ok := c.Pointer().(ComponentDisabler); ok {
+			e.ComponentDisable()
+		}
+	}
+	if e, ok := c.Pointer().(ComponentEnabler); ok {
+		e.ComponentEnable()
+	}
+	if len(c.object.Children()) == 0 {
+		if cp, ok := c.Pointer().(ChildProvider); ok {
+			for _, obj := range cp.ChildNodes() {
+				c.object.AppendChild(obj)
+			}
+		}
+	}
+	c.loaded = true
+	c.SetEnabled(true)
+	return nil
 }
 
 // TODO

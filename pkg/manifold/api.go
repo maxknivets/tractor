@@ -192,6 +192,8 @@ type Component interface {
 
 	FieldType(path string) reflect.Type
 
+	Reload() error
+
 	// TODO
 	Fields()
 

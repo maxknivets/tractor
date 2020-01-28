@@ -148,28 +148,13 @@ func (i *Image) Load() (manifold.Object, error) {
 	manifold.Walk(obj, func(o manifold.Object) {
 		o.UpdateRegistry()
 		for _, c := range o.Components() {
-			// TODO: deprecated, remove
-			if i, ok := c.Pointer().(componentInitializer); ok {
-				i.InitializeComponent(o)
-			}
 			if e, ok := c.Pointer().(componentEnabler); ok {
 				e.ComponentEnable()
-			}
-			if len(o.Children()) == 0 {
-				if cp, ok := c.Pointer().(ChildProvider); ok {
-					for _, obj := range cp.ChildNodes() {
-						o.AppendChild(obj)
-					}
-				}
 			}
 		}
 	})
 
 	return obj, nil
-}
-
-type ChildProvider interface {
-	ChildNodes() []manifold.Object
 }
 
 func (i *Image) loadObject(fs afero.Fs, path string) (manifold.Object, []manifold.SnapshotRef, error) {
