@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/manifold/qtalk/libmux/mux"
+	"github.com/manifold/qtalk/golang/mux"
 	"github.com/manifold/tractor/pkg/agent"
 	"github.com/manifold/tractor/pkg/agent/console"
 	"github.com/manifold/tractor/pkg/agent/rpc"

@@ -6,8 +6,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/manifold/qtalk/libmux/mux"
-	"github.com/manifold/qtalk/qrpc"
+	"github.com/manifold/qtalk/golang/mux"
+	qrpc "github.com/manifold/qtalk/golang/rpc"
 	"github.com/manifold/tractor/pkg/misc/logging"
 	"github.com/manifold/tractor/pkg/workspace/state"
 	"github.com/manifold/tractor/pkg/workspace/view"
@@ -26,7 +26,14 @@ type Service struct {
 	l         mux.Listener
 }
 
+func (s *Service) UpdateView() {
+	s.updateView()
+}
+
 func (s *Service) updateView() {
+	if s.viewState == nil || s.State == nil {
+		return
+	}
 	// TODO: mutex, etc
 	s.viewState.Update(s.State.Root)
 	for client, callback := range s.clients {

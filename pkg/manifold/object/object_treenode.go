@@ -4,15 +4,12 @@ import (
 	"fmt"
 
 	"github.com/manifold/tractor/pkg/manifold"
+	"github.com/manifold/tractor/pkg/misc/notify"
 )
 
 type privTreeNode interface {
 	manifold.Object
 	setChildren(ch []manifold.Object)
-}
-
-type treeNode struct {
-	object manifold.Object
 }
 
 func (o *object) Root() manifold.Object {
@@ -30,7 +27,12 @@ func (o *object) SetParent(obj manifold.Object) {
 	old := o.parent
 	if old != obj {
 		o.parent = obj
-		o.notify(o, "::Parent", old, obj)
+		notify.Send(o, manifold.ObjectChange{
+			Object: o,
+			Path:   "::Parent",
+			Old:    old,
+			New:    obj,
+		})
 	}
 }
 
@@ -75,7 +77,12 @@ func (o *object) SetSiblingIndex(idx int) error {
 	newChildren[idx] = o
 	parent.setChildren(append(newChildren, oldChildren[idx:]...))
 
-	o.notify(o, "::SiblingIndex", oldIndex, idx)
+	notify.Send(o, manifold.ObjectChange{
+		Object: o,
+		Path:   "::SiblingIndex",
+		Old:    oldIndex,
+		New:    idx,
+	})
 	return nil
 }
 
@@ -130,7 +137,11 @@ func (o *object) RemoveChildAt(idx int) manifold.Object {
 	} else {
 		o.children = o.children[:idx]
 	}
-	o.notify(o, "::Children", child, nil)
+	notify.Send(o, manifold.ObjectChange{
+		Object: o,
+		Path:   "::Children",
+		Old:    child,
+	})
 	return child
 }
 
@@ -139,7 +150,11 @@ func (o *object) InsertChildAt(idx int, child manifold.Object) {
 		panic(fmt.Sprintf("cannot insert child to index: %d", idx))
 	}
 
-	defer o.notify(o, "::Children", nil, child)
+	defer notify.Send(o, manifold.ObjectChange{
+		Object: o,
+		Path:   "::Children",
+		New:    child,
+	})
 
 	child.SetParent(o)
 	if idx >= len(o.children) {
@@ -157,13 +172,21 @@ func (o *object) RemoveChild(child manifold.Object) {
 		return
 	}
 	o.RemoveChildAt(idx)
-	o.notify(o, "::Children", child, nil)
+	notify.Send(o, manifold.ObjectChange{
+		Object: o,
+		Path:   "::Children",
+		Old:    child,
+	})
 }
 
 func (o *object) AppendChild(child manifold.Object) {
 	child.SetParent(o)
 	o.children = append(o.children, child)
-	o.notify(o, "::Children", nil, child)
+	notify.Send(o, manifold.ObjectChange{
+		Object: o,
+		Path:   "::Children",
+		New:    child,
+	})
 }
 
 func (o *object) ChildAt(idx int) manifold.Object {

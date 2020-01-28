@@ -23,7 +23,7 @@ func TestComponent(t *testing.T) {
 	t.Run("GetSetFields", func(t *testing.T) {
 		obj := &testComponent{Foo: "foo"}
 		com := newComponent("test", obj, "")
-		v, _ := com.GetField("Foo")
+		v, _, _ := com.GetField("Foo")
 		assert.Equal(t, "foo", v)
 		com.SetField("Foo", "bar")
 		assert.Equal(t, "bar", obj.Foo)

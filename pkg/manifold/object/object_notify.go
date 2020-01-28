@@ -1,11 +1,8 @@
 package object
 
 import (
-	pathmod "path"
-	"runtime"
-	"strings"
-
 	"github.com/manifold/tractor/pkg/manifold"
+	"github.com/manifold/tractor/pkg/misc/notify"
 )
 
 // observe component list changes
@@ -13,12 +10,24 @@ import (
 func (o *object) AppendComponent(com manifold.Component) {
 	o.componentlist.AppendComponent(com)
 	com.SetContainer(o)
-	o.notify(o, "::Components", nil, com)
+	o.UpdateRegistry()
+	o.registry.Populate(com.Pointer())
+	notify.Send(o, manifold.ObjectChange{
+		Object: o,
+		Path:   "::Components",
+		New:    com,
+	})
+
 }
 
 func (o *object) RemoveComponent(com manifold.Component) {
 	o.componentlist.RemoveComponent(com)
-	o.notify(o, "::Components", com, nil)
+	o.UpdateRegistry()
+	notify.Send(o, manifold.ObjectChange{
+		Object: o,
+		Path:   "::Components",
+		Old:    com,
+	})
 	if o.main == com {
 		o.main = nil
 	}
@@ -27,12 +36,23 @@ func (o *object) RemoveComponent(com manifold.Component) {
 func (o *object) InsertComponentAt(idx int, com manifold.Component) {
 	o.componentlist.InsertComponentAt(idx, com)
 	com.SetContainer(o)
-	o.notify(o, "::Components", nil, com)
+	o.UpdateRegistry()
+	o.registry.Populate(com.Pointer())
+	notify.Send(o, manifold.ObjectChange{
+		Object: o,
+		Path:   "::Components",
+		New:    com,
+	})
 }
 
 func (o *object) RemoveComponentAt(idx int) manifold.Component {
 	c := o.componentlist.RemoveComponentAt(idx)
-	o.notify(o, "::Components", c, nil)
+	o.UpdateRegistry()
+	notify.Send(o, manifold.ObjectChange{
+		Object: o,
+		Path:   "::Components",
+		Old:    c,
+	})
 	if o.main == c {
 		o.main = nil
 	}
@@ -45,7 +65,12 @@ func (o *object) SetAttribute(attr string, value interface{}) {
 	prev := o.GetAttribute(attr)
 	if prev != value {
 		o.attributeset.SetAttribute(attr, value)
-		o.notify(o, "::"+attr, prev, value)
+		notify.Send(o, manifold.ObjectChange{
+			Object: o,
+			Path:   "--" + attr,
+			Old:    prev,
+			New:    value,
+		})
 	}
 }
 
@@ -53,62 +78,10 @@ func (o *object) UnsetAttribute(attr string) {
 	prev := o.GetAttribute(attr)
 	if prev != nil {
 		o.attributeset.UnsetAttribute(attr)
-		o.notify(o, "::"+attr, prev, nil)
+		notify.Send(o, manifold.ObjectChange{
+			Object: o,
+			Path:   "--" + attr,
+			Old:    prev,
+		})
 	}
-}
-
-func (sender *object) notify(changed manifold.Object, path string, old, new interface{}) {
-	sender.Notify(changed, path, old, new)
-}
-
-func (sender *object) Notify(changed manifold.Object, path string, old, new interface{}) {
-	if sender == nil {
-		return
-	}
-	// caller := getFrame(1).Function
-	// fmt.Printf("NOTIFY trigger=%s path=%s obj=%s\n", caller, path, sender.Name())
-
-	if sender == changed {
-		path = pathmod.Join(changed.Path(), path)
-	}
-
-	for obs := range sender.observers {
-		if strings.HasPrefix(path, obs.Path) {
-			obs.OnChange(changed, path, old, new)
-		}
-	}
-
-	if sender.parent == nil {
-		return
-	}
-
-	parent, ok := sender.parent.(*object)
-	if ok && parent == nil {
-		return
-	}
-
-	parent.notify(changed, path, old, new)
-}
-
-func getFrame(skipFrames int) runtime.Frame {
-	// We need the frame at index skipFrames+2, since we never want runtime.Callers and getFrame
-	targetFrameIndex := skipFrames + 2
-
-	// Set size to targetFrameIndex+2 to ensure we have room for one more caller than we need
-	programCounters := make([]uintptr, targetFrameIndex+2)
-	n := runtime.Callers(0, programCounters)
-
-	frame := runtime.Frame{Function: "unknown"}
-	if n > 0 {
-		frames := runtime.CallersFrames(programCounters[:n])
-		for more, frameIndex := true, 0; more && frameIndex <= targetFrameIndex; frameIndex++ {
-			var frameCandidate runtime.Frame
-			frameCandidate, more = frames.Next()
-			if frameIndex == targetFrameIndex {
-				frame = frameCandidate
-			}
-		}
-	}
-
-	return frame
 }

@@ -5,8 +5,8 @@ These are instructions for development, which is the only way to use Tractor rig
 ### Prerequisites
  * golang 1.13+
  * git 2.11+
- * node 10.x (not 12.x)
- * python (for node. right???)
+ * node 10.x.x (not 12.x.x)
+ * python (for node-gyp)
  * make
  * yarn `npm i -g yarn`
  * typescript `yarn global add typescript`
@@ -18,7 +18,6 @@ These are instructions for development, which is the only way to use Tractor rig
    * g++
  * for mac: 
    * XCode Command Line Tools
-   * larger open file limit (`ulimit -n 2048`)
 
 See what versions you have with `make versions`:
 ```
@@ -34,12 +33,7 @@ apparently means the 10.x line. On OS X installing with `brew install node@10`
 may still result in version 12. You may need to force `brew link` the older version.
 
 ### Setup
-You first need to clone and link qtalk:
-```
-$ git clone https://github.com/manifold/qtalk
-$ make -C qtalk link
-```
-Now we can clone and setup tractor:
+Just clone and setup tractor:
 ```
 $ git clone https://github.com/manifold/tractor
 $ cd tractor
@@ -51,4 +45,7 @@ Run the agent in development mode with:
 ```
 $ make dev
 ```
-
+Tractor Studio will be running on `http://localhost:3000` but you want to open it with a 
+path to a Tractor workspace. A development workspace is created for you at `local/workspace`
+which should show up in the Tractor systray menu as `dev`. Clicking `dev` in the menu will
+launch Studio in your browser opened to that workspace.

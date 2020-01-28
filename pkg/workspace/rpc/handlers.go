@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/manifold/qtalk/qrpc"
+	qrpc "github.com/manifold/qtalk/golang/rpc"
 	"github.com/manifold/tractor/pkg/manifold/library"
 	"github.com/manifold/tractor/pkg/manifold/object"
 )
@@ -107,21 +107,22 @@ func (s *Service) ReloadComponent() func(qrpc.Responder, *qrpc.Call) {
 		}
 		com := n.Component(params.Component)
 		if e, ok := com.Pointer().(disabler); ok {
-			e.OnDisable()
+			e.ComponentDisable()
 		}
 		if e, ok := com.Pointer().(enabler); ok {
-			e.OnEnable()
+			e.ComponentEnable()
 		}
+		n.UpdateRegistry()
 		s.updateView()
 		r.Return(nil)
 	}
 }
 
 type enabler interface {
-	OnEnable()
+	ComponentEnable()
 }
 type disabler interface {
-	OnDisable()
+	ComponentDisable()
 }
 
 func (s *Service) AddDelegate() func(qrpc.Responder, *qrpc.Call) {

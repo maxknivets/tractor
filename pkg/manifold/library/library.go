@@ -18,7 +18,7 @@ type RegisteredComponent struct {
 }
 
 func (rc *RegisteredComponent) New() manifold.Component {
-	return NewComponent(rc.Type.Name(), rc.NewValue(), rc.ID)
+	return newComponent(rc.Type.Name(), rc.NewValue(), rc.ID)
 }
 
 func (rc *RegisteredComponent) NewValue() interface{} {

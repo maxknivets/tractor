@@ -1,10 +1,10 @@
 package object
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/manifold/tractor/pkg/manifold"
+	"github.com/manifold/tractor/pkg/misc/notify"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -71,19 +71,22 @@ func TestObserveObject(t *testing.T) {
 func assertObserve(t *testing.T, subject manifold.Object, changed manifold.Object, subpath string, old, new interface{}, action func()) {
 	notified := false
 	t.Logf("assert oberserver %q %+v", t.Name(), changed.Subpath(subpath))
-	subject.Observe(&manifold.ObjectObserver{
-		OnChange: func(obj manifold.Object, path string, o, n interface{}) {
-			if obj != changed || !strings.HasSuffix(path, subpath) {
-				return
-			}
-			t.Logf("OnChange %q %+v %+v %+v", path, obj, o, n)
-			assert.Equal(t, subject, obj)
-			assert.Equal(t, obj.Subpath(subpath), path)
-			assert.Equal(t, old, o)
-			assert.Equal(t, new, n)
-			notified = true
-		},
-	})
+	notify.Observe(subject, notify.Func(func(e interface{}) {
+		var event manifold.ObjectChange
+		var ok bool
+		if event, ok = e.(manifold.ObjectChange); !ok {
+			return
+		}
+		if event.Path != subpath {
+			return
+		}
+		t.Logf("OnChange %q %+v %+v %+v", event.Path, event.Object, event.Old, event.New)
+		assert.Equal(t, subject, event.Object)
+		assert.Equal(t, subpath, event.Path)
+		assert.Equal(t, old, event.Old)
+		assert.Equal(t, new, event.New)
+		notified = true
+	}))
 	require.False(t, notified)
 	action()
 	require.True(t, notified)

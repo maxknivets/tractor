@@ -1,8 +1,8 @@
-.PHONY: build setup clobber dev versions studio kill
+.PHONY: build setup clobber dev versions studio kill qtalk
 
 build: clobber local/bin/tractor-agent local/bin/tractor 
 
-setup: local/workspace local/bin studio
+setup: local/workspace local/bin studio qtalk
 	make build
 
 dev:
@@ -23,6 +23,9 @@ versions:
 	@echo "yarn $(shell yarn --version)"
 	@echo "typescript $(shell tsc --version)"
 	
+qtalk:
+	git submodule update --init --recursive
+
 
 local/bin:
 	mkdir -p local/bin

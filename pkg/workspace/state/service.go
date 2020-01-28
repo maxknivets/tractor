@@ -10,6 +10,7 @@ import (
 	"github.com/manifold/tractor/pkg/manifold/image"
 	"github.com/manifold/tractor/pkg/misc/debouncer"
 	"github.com/manifold/tractor/pkg/misc/logging"
+	"github.com/manifold/tractor/pkg/misc/notify"
 )
 
 type Service struct {
@@ -44,15 +45,13 @@ func (s *Service) InitializeDaemon() (err error) {
 	})
 
 	debounce := debouncer.New(2 * time.Second)
-	s.Root.Observe(&manifold.ObjectObserver{
-		OnChange: func(node manifold.Object, path string, old, new interface{}) {
-			debounce(func() {
-				// TODO: Log errors?
-				log.Print("change triggered SNAPSHOT")
-				s.Snapshot()
-			})
-		},
-	})
+	notify.Observe(s.Root, notify.Func(func(event interface{}) {
+		debounce(func() {
+			// TODO: Log errors?
+			log.Print("change triggered SNAPSHOT")
+			s.Snapshot()
+		})
+	}))
 
 	return nil
 }

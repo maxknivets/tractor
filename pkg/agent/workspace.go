@@ -8,16 +8,17 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
 
-	"github.com/fsnotify/fsnotify"
 	"github.com/manifold/tractor/pkg/agent/console"
 	"github.com/manifold/tractor/pkg/data/icons"
 	"github.com/manifold/tractor/pkg/misc/buffer"
 	"github.com/manifold/tractor/pkg/misc/logging"
 	"github.com/manifold/tractor/pkg/misc/subcmd"
+	"github.com/radovskyb/watcher"
 )
 
 type WorkspaceStatus string
@@ -26,6 +27,8 @@ const (
 	StatusAvailable   WorkspaceStatus = "Available"
 	StatusPartially   WorkspaceStatus = "Partially"
 	StatusUnavailable WorkspaceStatus = "Unavailable"
+
+	WatchInterval = 50 * time.Millisecond
 )
 
 func (s WorkspaceStatus) Icon() []byte {
@@ -60,6 +63,8 @@ type Workspace struct {
 	daemon      *subcmd.Subcmd
 	daemonCmd   []string
 	goBin       string
+
+	watcher *watcher.Watcher
 
 	starting sync.Mutex
 	statMu   sync.Mutex
@@ -160,7 +165,7 @@ func (w *Workspace) StartDaemon() error {
 		case subcmd.StatusExited:
 			w.cleanup()
 			if cmd.Error() != nil {
-				info(w.log, cmd.Error())
+				//info(w.log, cmd.Error())
 				w.setStatus(StatusUnavailable)
 			} else {
 				w.setStatus(StatusPartially)
@@ -188,68 +193,89 @@ func (w *Workspace) cleanup() {
 func (w *Workspace) Serve(ctx context.Context) {
 	w.StartDaemon()
 
-	watcher, err := fsnotify.NewWatcher()
+	w.watcher = watcher.New()
+	// w.watcher.SetMaxEvents(1)
+	w.watcher.IgnoreHiddenFiles(true)
+	w.watcher.AddFilterHook(func(info os.FileInfo, fullPath string) error {
+		allowedExt := []string{".go", ".ts", ".tsx", ".js", ".jsx", ".html"}
+		ignoreSubstr := []string{"node_modules"}
+		for _, substr := range ignoreSubstr {
+			if strings.Contains(fullPath, substr) {
+				return watcher.ErrSkip
+			}
+		}
+		for _, ext := range allowedExt {
+			if filepath.Ext(info.Name()) == ext {
+				return nil
+			}
+		}
+		return watcher.ErrSkip
+	})
+
+	err := w.watcher.AddRecursive(w.TargetPath)
 	if err != nil {
-		info(w.log, "unable to create watcher:", err)
+		info(w.log, "unable to watch path:", w.TargetPath, err)
 		return
 	}
-	for _, path := range collectDirs(w.TargetPath, []string{"node_modules", ".git"}) {
-		err = watcher.Add(path)
-		if err != nil {
-			info(w.log, "unable to watch path:", path, err)
-			return
-		}
-	}
-	debounce := Debounce(20 * time.Millisecond)
-	for {
-		select {
-		case <-ctx.Done():
-			watcher.Close()
-			return
-		case event, ok := <-watcher.Events:
-			if !ok {
+
+	debounce := Debounce(WatchInterval)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				w.watcher.Close()
 				return
-			}
-			if event.Op&fsnotify.Chmod == fsnotify.Chmod {
-				continue
-			}
-
-			//dirCreated := false
-			if event.Op&fsnotify.Create == fsnotify.Create {
-				fi, err := os.Stat(event.Name)
-				if err != nil {
-					info(w.log, "watcher:", err)
-				}
-				if fi.IsDir() {
-					watcher.Add(event.Name)
-					//dirCreated = true
-				}
-			}
-
-			if filepath.Ext(event.Name) != ".go" { //&& !dirCreated
-				continue
-			}
-
-			info(w.log, "detected change:", event.Name)
-
-			debounce(func() {
-				info(w.log, "recompiling workspace:", w.Name)
-				if err := w.Recompile(); err != nil {
-					info(w.log, err)
+			case event, ok := <-w.watcher.Event:
+				if !ok {
 					return
 				}
-				info(w.log, "reloading workspace:", w.Name)
-				if err := w.daemon.Restart(); err != nil {
-					info(w.log, err)
+				if event.Op&watcher.Chmod == watcher.Chmod {
+					continue
 				}
-			})
 
-		case err, ok := <-watcher.Errors:
-			if !ok {
+				//dirCreated := false
+				if event.Op&watcher.Create == watcher.Create {
+					// fi, err := os.Stat(event.Path)
+					// if err != nil {
+					// 	info(w.log, "watcher:", err)
+					// }
+					// if fi.IsDir() {
+					// 	watcher.Add(event.Name)
+					// 	//dirCreated = true
+					// }
+				}
+
+				if filepath.Ext(event.Path) != ".go" { //&& !dirCreated
+					continue
+				}
+
+				info(w.log, "detected change:", event.Path)
+
+				debounce(func() {
+					info(w.log, "recompiling workspace:", w.Name)
+					if err := w.Recompile(); err != nil {
+						info(w.log, err)
+						return
+					}
+					info(w.log, "reloading workspace:", w.Name)
+					if err := w.daemon.Restart(); err != nil {
+						info(w.log, err)
+					}
+				})
+
+			case err, ok := <-w.watcher.Error:
+				if !ok {
+					return
+				}
+				logErr(w.log, "watcher error:", err)
+			case <-w.watcher.Closed:
 				return
 			}
-			logErr(w.log, "watcher error:", err)
 		}
+	}()
+
+	if err := w.watcher.Start(WatchInterval); err != nil {
+		logErr(w.log, "watcher error:", err)
 	}
 }
 
@@ -304,26 +330,4 @@ func (w *Workspace) setStatus(s WorkspaceStatus) {
 	}
 	w.obsMu.Unlock()
 	w.statMu.Unlock()
-}
-
-func collectDirs(path string, ignoreNames []string) []string {
-	var dirs []string
-	err := filepath.Walk(path, func(p string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if info.IsDir() {
-			for _, name := range ignoreNames {
-				if info.Name() == name {
-					return filepath.SkipDir
-				}
-			}
-			dirs = append(dirs, p)
-		}
-		return nil
-	})
-	if err != nil {
-		return nil
-	}
-	return dirs
 }

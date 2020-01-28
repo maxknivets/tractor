@@ -1,0 +1,3 @@
+[submodule "qtalk"]
+	path = qtalk
+	url = https://github.com/manifold/qtalk.git

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/manifold/qtalk/libmux/mux"
-	"github.com/manifold/qtalk/qrpc"
+	"github.com/manifold/qtalk/golang/mux"
+	qrpc "github.com/manifold/qtalk/golang/rpc"
 	"github.com/manifold/tractor/pkg/agent"
 	"github.com/manifold/tractor/pkg/misc/logging"
 )
@@ -37,7 +37,7 @@ func (s *Service) InitializeDaemon() (err error) {
 func (s *Service) Serve(ctx context.Context) {
 	server := &qrpc.Server{}
 
-	s.periodicStatus()
+	//s.periodicStatus()
 
 	s.Log.Infof("[server] unix://%s", s.Agent.SocketPath)
 	if err := server.Serve(s.l, s.api); err != nil {

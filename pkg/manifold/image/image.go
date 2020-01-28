@@ -14,17 +14,26 @@ import (
 	"github.com/manifold/tractor/pkg/manifold"
 	"github.com/manifold/tractor/pkg/manifold/library"
 	"github.com/manifold/tractor/pkg/manifold/object"
-	"github.com/progrium/prototypes/go-reflected"
 	"github.com/spf13/afero"
 )
 
 const (
-	// ObjectPathAttr = "image.objpath"
 	ObjectDir  = "obj"
 	ObjectFile = "object.json"
 
 	PackageDir = "pkg"
 )
+
+type componentInitializer interface {
+	InitializeComponent(o manifold.Object)
+}
+
+type componentEnabler interface {
+	ComponentEnable()
+}
+type componentDisabler interface {
+	ComponentDisable()
+}
 
 type Image struct {
 	fs       afero.Fs
@@ -130,15 +139,28 @@ func (i *Image) Load() (manifold.Object, error) {
 			log.Printf("no object found for snapshot ref target at %s", ref.TargetID)
 			continue
 		}
-		ptr := reflect.New(ref.TargetType)
+		_, targetType, _ := src.GetField(ref.Path)
+		ptr := reflect.New(targetType)
 		dst.ValueTo(ptr)
 		src.SetField(ref.Path, reflect.Indirect(ptr).Interface())
 	}
 
 	manifold.Walk(obj, func(o manifold.Object) {
+		o.UpdateRegistry()
 		for _, c := range o.Components() {
-			if e, ok := c.Pointer().(enabler); ok {
-				e.OnEnable()
+			// TODO: deprecated, remove
+			if i, ok := c.Pointer().(componentInitializer); ok {
+				i.InitializeComponent(o)
+			}
+			if e, ok := c.Pointer().(componentEnabler); ok {
+				e.ComponentEnable()
+			}
+			if len(o.Children()) == 0 {
+				if cp, ok := c.Pointer().(ChildProvider); ok {
+					for _, obj := range cp.ChildNodes() {
+						o.AppendChild(obj)
+					}
+				}
 			}
 		}
 	})
@@ -146,14 +168,11 @@ func (i *Image) Load() (manifold.Object, error) {
 	return obj, nil
 }
 
-type enabler interface {
-	OnEnable()
-}
-type disabler interface {
-	OnDisable()
+type ChildProvider interface {
+	ChildNodes() []manifold.Object
 }
 
-func (i *Image) loadObject(fs afero.Fs, path string) (manifold.Object, []SnapshotRef, error) {
+func (i *Image) loadObject(fs afero.Fs, path string) (manifold.Object, []manifold.SnapshotRef, error) {
 	// TODO: Handle missing components?
 
 	buf, err := afero.ReadFile(fs, ObjectFile)
@@ -167,9 +186,11 @@ func (i *Image) loadObject(fs afero.Fs, path string) (manifold.Object, []Snapsho
 		return nil, nil, err
 	}
 
+	var refs []manifold.SnapshotRef
 	obj := object.FromSnapshot(snapshot)
 	i.lastObjPath[obj.ID()] = path
 	for _, c := range snapshot.Components {
+		refs = append(refs, c.Refs...)
 		com := library.NewComponent(c.Name, c.Value, c.ID)
 		com.SetEnabled(c.Enabled)
 		obj.AppendComponent(com)
@@ -183,14 +204,13 @@ func (i *Image) loadObject(fs afero.Fs, path string) (manifold.Object, []Snapsho
 		}
 	}
 
-	var refs []SnapshotRef
-	for _, c := range obj.Components() {
-		refs = append(refs, scanRefs(c.Pointer(), c.Name(), obj.ID())...)
-	}
-
 	for _, childInfo := range snapshot.Children {
-		childFs := afero.NewBasePathFs(fs, pathNameFromImage(childInfo))
-		childPath := paths.Join(path, pathNameFromImage(childInfo))
+		name := pathNameFromImage(childInfo)
+		if ok, err := afero.Exists(fs, name); !ok || err != nil {
+			continue
+		}
+		childFs := afero.NewBasePathFs(fs, name)
+		childPath := paths.Join(path, name)
 		child, childRefs, err := i.loadObject(childFs, childPath)
 		if err != nil {
 			return nil, nil, err
@@ -245,44 +265,6 @@ func (i *Image) writeObject(fs afero.Fs, path string, obj manifold.Object) error
 	}
 
 	return nil
-}
-
-type SnapshotRef struct {
-	ObjectID   string
-	Path       string
-	TargetID   string
-	TargetType reflect.Type
-}
-
-func scanRefs(v interface{}, basePath, objectID string) []SnapshotRef {
-	var refs []SnapshotRef
-	rv := reflected.ValueOf(v)
-	rt := rv.Type()
-	if rt.Kind() != reflect.Struct {
-		fmt.Println("unexpected non-struct: ", objectID, basePath)
-		return refs
-	}
-	for _, field := range rt.Fields() {
-		ft := rt.FieldType(field)
-		fieldPath := path.Join(basePath, field)
-		switch ft.Kind() {
-		case reflect.Interface:
-			fv := rv.Get(field)
-			if fv.HasKey("$ref") && fv.Get("$ref").IsValid() {
-				refs = append(refs, SnapshotRef{
-					ObjectID:   objectID,
-					Path:       fieldPath,
-					TargetID:   fv.Get("$ref").String(),
-					TargetType: ft.Type,
-				})
-			}
-		case reflect.Struct, reflect.Map:
-			refs = append(refs, scanRefs(rv.Get(field).Interface(), fieldPath, objectID)...)
-		default:
-			// TODO: slices need to be inflated too??
-		}
-	}
-	return refs
 }
 
 func pathNameFromImage(parts []string) string {

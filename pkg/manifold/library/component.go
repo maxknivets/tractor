@@ -2,10 +2,13 @@ package library
 
 import (
 	"fmt"
+	"path"
 	"reflect"
+	"strings"
 
 	"github.com/manifold/tractor/pkg/manifold"
 	"github.com/manifold/tractor/pkg/misc/jsonpointer"
+	"github.com/manifold/tractor/pkg/misc/notify"
 	"github.com/mitchellh/mapstructure"
 	reflected "github.com/progrium/prototypes/go-reflected"
 )
@@ -16,33 +19,24 @@ type component struct {
 	id      string
 	enabled bool
 	value   interface{}
+	typed   bool
 }
 
 func newComponent(name string, value interface{}, id string) *component {
-	var typedValue interface{}
 	if id == "" {
 		// TODO: make up mind on how to use component IDs
 		//id = xid.New().String()
-		if rc := Lookup(name); rc != nil {
-			typedValue = rc.NewValue()
-		}
-	} else {
-		if rc := LookupID(id); rc != nil {
-			typedValue = rc.NewValue()
-		}
 	}
-	if typedValue != nil {
-		if err := mapstructure.Decode(value, typedValue); err == nil {
-			value = typedValue
-		} else {
-			panic(err)
-		}
+	var typed bool
+	if _, ok := value.(map[string]interface{}); !ok {
+		typed = true
 	}
 	return &component{
 		name:    name,
 		enabled: true,
 		value:   value,
 		id:      id,
+		typed:   typed,
 	}
 }
 
@@ -50,33 +44,38 @@ func NewComponent(name string, value interface{}, id string) manifold.Component 
 	return newComponent(name, value, id)
 }
 
-func (c *component) GetField(path string) (interface{}, error) {
+func (c *component) GetField(path string) (interface{}, reflect.Type, error) {
 	// TODO: check if field exists
-	return jsonpointer.Reflect(c.value, path), nil
+	return jsonpointer.Reflect(c.Pointer(), path), c.FieldType(path), nil
 }
 
 func (c *component) SetField(path string, value interface{}) error {
-	old, _ := c.GetField(path)
+	old, _, _ := c.GetField(path)
 	if old == value {
 		return nil
 	}
 	jsonpointer.SetReflect(c.value, path, value)
-	// TODO: potentially replace this with an observer system that hooks in elsewhere
-	if n, ok := c.object.(manifold.ObjectNotifier); ok {
-		n.Notify(c.object, fmt.Sprintf("%s/%s", c.name, path), old, value)
-	}
+	notify.Send(c.object, manifold.ObjectChange{
+		Object: c.object,
+		Path:   fmt.Sprintf("%s/%s", c.name, path),
+		Old:    old,
+		New:    value,
+	})
 	return nil
 }
 
 func (c *component) FieldType(path string) reflect.Type {
-	// TODO: subfields/subpath...
-	rv := reflected.TypeOf(c.value)
-	return rv.FieldType(path).Type
+	parts := strings.Split(path, "/")
+	rt := reflected.TypeOf(c.Pointer())
+	for _, part := range parts {
+		rt = rt.FieldType(part)
+	}
+	return rt.Type
 }
 
 func (c *component) CallMethod(path string, args []interface{}, reply interface{}) error {
 	// TODO: support methods on sub paths / data structures
-	rval := reflect.ValueOf(c.value)
+	rval := reflect.ValueOf(c.Pointer())
 	method := rval.MethodByName(path)
 	var params []reflect.Value
 	for _, arg := range args {
@@ -120,9 +119,12 @@ func (c *component) SetIndex(idx int) {
 	}
 	c.object.RemoveComponent(c)
 	c.object.InsertComponentAt(idx, c)
-	if n, ok := c.object.(manifold.ObjectNotifier); ok {
-		n.Notify(c.object, fmt.Sprintf("%s/::Index", c.name), old, idx)
-	}
+	notify.Send(c.object, manifold.ObjectChange{
+		Object: c.object,
+		Path:   fmt.Sprintf("%s/::Index", c.name),
+		Old:    old,
+		New:    idx,
+	})
 }
 
 func (c *component) Name() string {
@@ -143,9 +145,13 @@ func (c *component) SetEnabled(enable bool) {
 		return
 	}
 	c.enabled = enable
-	if n, ok := c.object.(manifold.ObjectNotifier); ok {
-		n.Notify(c.object, fmt.Sprintf("%s/::Enabled", c.name), old, enable)
-	}
+	notify.Send(c.object, manifold.ObjectChange{
+		Object: c.object,
+		Path:   fmt.Sprintf("%s/::Enabled", c.name),
+		Old:    old,
+		New:    enable,
+	})
+
 }
 
 func (c *component) Container() manifold.Object {
@@ -158,11 +164,15 @@ func (c *component) SetContainer(obj manifold.Object) {
 
 // TODO: rename to Value()?
 func (c *component) Pointer() interface{} {
+	if !c.typed {
+		c.value = typedComponentValue(c.value, c.name, c.id)
+		c.typed = true
+	}
 	return c.value
 }
 
 func (c *component) Type() reflect.Type {
-	return reflect.TypeOf(c.value)
+	return reflect.TypeOf(c.Pointer())
 }
 
 // TODO
@@ -178,45 +188,77 @@ func (c *component) RelatedComponents() {}
 func (c *component) RelatedPrefabs() {}
 
 func (c *component) Snapshot() manifold.ComponentSnapshot {
+	if !c.typed {
+		panic("snapshot before component value is typed")
+	}
 	com := manifold.ComponentSnapshot{
 		Name:    c.name,
 		ID:      c.id,
 		Enabled: c.enabled,
+		Value:   c.value,
 	}
 	if c.object != nil {
 		com.ObjectID = c.object.ID()
-		com.Value = deflateReferences(c.object.Root(), c.value)
-	} else {
-		com.Value = deflateReferences(nil, c.value)
+		com.Value, com.Refs = extractRefs(c.object, com.Name, com.Value)
 	}
 	return com
 }
 
-func deflateReferences(root manifold.Object, v interface{}) map[string]interface{} {
-	out := make(map[string]interface{})
+func extractRefs(obj manifold.Object, basePath string, v interface{}) (out map[string]interface{}, refs []manifold.SnapshotRef) {
+	if obj.Root() == nil {
+		return
+	}
+	out = make(map[string]interface{})
 	rv := reflected.ValueOf(v)
+	if rv.Kind() != reflect.Ptr {
+		return
+	}
 	rt := rv.Type()
 	for _, field := range rt.Fields() {
 		ft := rt.FieldType(field)
+		fieldPath := path.Join(basePath, field)
+		var subrefs []manifold.SnapshotRef
 		switch ft.Kind() {
 		case reflect.Struct, reflect.Map, reflect.Slice:
-			out[field] = deflateReferences(root, rv.Get(field).Interface())
+			out[field], subrefs = extractRefs(obj, fieldPath, rv.Get(field).Interface())
+			refs = append(refs, subrefs...)
 		case reflect.Ptr, reflect.Interface:
 			if rv.Get(field).IsNil() {
 				continue
 			}
-			if root == nil {
-				out[field] = deflateReferences(root, rv.Get(field).Interface())
-			}
-			obj := root.Root().FindPointer(rv.Get(field).Interface())
-			if obj == nil {
-				out[field] = map[string]interface{}{"$ref": nil}
-			} else {
-				out[field] = map[string]interface{}{"$ref": obj.ID()}
+			target := obj.Root().FindPointer(rv.Get(field).Interface())
+			if target != nil {
+				refs = append(refs, manifold.SnapshotRef{
+					ObjectID: obj.ID(),
+					Path:     fieldPath,
+					TargetID: target.ID(),
+				})
+				out[field] = nil
 			}
 		default:
 			out[field] = rv.Get(field).Interface()
 		}
 	}
-	return out
+	return
+}
+
+func typedComponentValue(value interface{}, name, id string) interface{} {
+	var typedValue interface{}
+	if id == "" {
+		if rc := Lookup(name); rc != nil {
+			typedValue = rc.NewValue()
+		}
+	} else {
+		if rc := LookupID(id); rc != nil {
+			typedValue = rc.NewValue()
+		}
+	}
+	if typedValue == nil {
+		panic("unable to find registered component: " + name)
+	}
+	if err := mapstructure.Decode(value, typedValue); err == nil {
+		return typedValue
+	} else {
+		panic(err)
+	}
 }

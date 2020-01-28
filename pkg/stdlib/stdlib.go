@@ -4,11 +4,11 @@ import (
 	"path"
 	"runtime"
 
-	"github.com/manifold/tractor/stdlib/file"
-	"github.com/manifold/tractor/stdlib/http"
-	"github.com/manifold/tractor/stdlib/net"
-	"github.com/manifold/tractor/stdlib/net/irc"
-	"github.com/manifold/tractor/stdlib/time"
+	"github.com/manifold/tractor/pkg/stdlib/file"
+	"github.com/manifold/tractor/pkg/stdlib/http"
+	"github.com/manifold/tractor/pkg/stdlib/net"
+	"github.com/manifold/tractor/pkg/stdlib/net/irc"
+	"github.com/manifold/tractor/pkg/stdlib/time"
 
 	"github.com/manifold/tractor/pkg/manifold/library"
 )
@@ -22,6 +22,7 @@ func Load() {
 	// file
 	library.Register(&file.Local{}, "", filepath("file/local.go"))
 	library.Register(&file.Path{}, "", filepath("file/path.go"))
+	library.Register(&file.Explorer{}, "", filepath("file/explorer.go"))
 
 	// http
 	library.Register(&http.SingleUserBasicAuth{}, "", filepath("http/basicauth.go"))

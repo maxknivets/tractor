@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/manifold/qtalk/qrpc"
+	qrpc "github.com/manifold/qtalk/golang/rpc"
 )
 
 func (s *Service) Connect() func(qrpc.Responder, *qrpc.Call) {

@@ -6,11 +6,13 @@ import (
 	"log"
 	"os"
 
+	"github.com/manifold/tractor/pkg/manifold"
+	"github.com/manifold/tractor/pkg/manifold/object"
 	"github.com/manifold/tractor/pkg/misc/daemon"
 	"github.com/manifold/tractor/pkg/misc/logging/std"
+	"github.com/manifold/tractor/pkg/stdlib"
 	"github.com/manifold/tractor/pkg/workspace/rpc"
 	"github.com/manifold/tractor/pkg/workspace/state"
-	"github.com/manifold/tractor/stdlib"
 )
 
 var (
@@ -25,15 +27,19 @@ func init() {
 func Run() {
 	flag.Parse()
 	logger := std.NewLogger("", os.Stdout)
+	rpcSvc := &rpc.Service{
+		Protocol:   *proto,
+		ListenAddr: *addr,
+		Log:        logger,
+	}
+	object.RegistryPreloader = func(o manifold.Object) []interface{} {
+		return []interface{}{o, rpcSvc}
+	}
 	dm := daemon.New([]daemon.Service{
 		&state.Service{
 			Log: logger,
 		},
-		&rpc.Service{
-			Protocol:   *proto,
-			ListenAddr: *addr,
-			Log:        logger,
-		},
+		rpcSvc,
 	}...)
 	fatal(dm.Run(context.Background()))
 }

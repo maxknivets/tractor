@@ -6,8 +6,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/manifold/qtalk/libmux/mux"
-	"github.com/manifold/qtalk/qrpc"
+	"github.com/manifold/qtalk/golang/mux"
+	qrpc "github.com/manifold/qtalk/golang/rpc"
 	"github.com/manifold/tractor/pkg/agent"
 	"github.com/spf13/cobra"
 )

@@ -21,12 +21,13 @@ require (
 	github.com/lucas-clemente/quic-go v0.13.1 // indirect
 	github.com/lxn/walk v0.0.0-20191128110447-55ccb3a9f5c1 // indirect
 	github.com/lxn/win v0.0.0-20191128105842-2da648fda5b4 // indirect
-	github.com/manifold/qtalk v0.0.0-20191117202844-f1ce2a287d67
+	github.com/manifold/qtalk v0.0.0-20200128221948-db808d3db838
 	github.com/mitchellh/hashstructure v1.0.0
 	github.com/mitchellh/mapstructure v1.1.2
 	github.com/nickvanw/ircx/v2 v2.0.0
 	github.com/oklog/ulid v1.3.1 // indirect
 	github.com/progrium/prototypes v0.0.0-20190807232325-d9b2b4ba3a4f
+	github.com/radovskyb/watcher v1.0.7
 	github.com/rjeczalik/notify v0.9.2
 	github.com/rs/xid v1.2.1
 	github.com/skratchdot/open-golang v0.0.0-20190402232053-79abb63cd66e

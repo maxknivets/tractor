@@ -13,13 +13,15 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/fsnotify/fsnotify"
 	"github.com/manifold/tractor/pkg/agent"
 	"github.com/manifold/tractor/pkg/agent/console"
 	"github.com/manifold/tractor/pkg/misc/daemon"
 	"github.com/manifold/tractor/pkg/misc/logging"
 	"github.com/manifold/tractor/pkg/misc/subcmd"
+	"github.com/radovskyb/watcher"
 )
+
+const WatchInterval = time.Millisecond * 50
 
 type Service struct {
 	Agent   *agent.Agent
@@ -27,50 +29,41 @@ type Service struct {
 	Logger  logging.DebugLogger
 	Console *console.Service
 
-	watcher *fsnotify.Watcher
+	watcher *watcher.Watcher
 	output  io.WriteCloser
 }
 
 func (s *Service) InitializeDaemon() (err error) {
 	s.output = s.Console.NewPipe("dev")
-	s.watcher, err = fsnotify.NewWatcher()
-	if err != nil {
-		return err
-	}
+	s.watcher = watcher.New()
+	s.watcher.SetMaxEvents(1)
+	s.watcher.IgnoreHiddenFiles(true)
+	s.watcher.AddFilterHook(func(info os.FileInfo, fullPath string) error {
+		allowedExt := []string{".go", ".ts", ".tsx", ".js", ".jsx", ".html"}
+		ignoreSubstr := []string{"node_modules"}
+		for _, substr := range ignoreSubstr {
+			if strings.Contains(fullPath, substr) {
+				return watcher.ErrSkip
+			}
+		}
+		for _, ext := range allowedExt {
+			if filepath.Ext(info.Name()) == ext {
+				return nil
+			}
+		}
+		return watcher.ErrSkip
+	})
 
-	for _, path := range collectDirs("./pkg", nil) {
-		err = s.watcher.Add(path)
-		if err != nil {
-			return err
-		}
-	}
-	for _, path := range collectDirs("./stdlib", nil) {
-		err = s.watcher.Add(path)
-		if err != nil {
-			return err
-		}
-	}
-
-	for _, path := range collectDirs("./studio/extension/src", []string{"node_modules", "out"}) {
-		err = s.watcher.Add(path)
-		if err != nil {
-			return err
-		}
-	}
-
-	for _, path := range collectDirs("./studio/plugins", []string{"node_modules", "out"}) {
-		err = s.watcher.Add(path)
-		if err != nil {
-			return err
-		}
-	}
+	s.watcher.AddRecursive("./pkg")
+	s.watcher.AddRecursive("./studio")
 
 	shellBuild := &cmdService{
 		subcmd.New("yarn", "run", "theia", "build", "--watch", "--mode", "development"),
 	}
 	shellBuild.Setup = func(cmd *exec.Cmd) error {
 		cmd.Dir = "./studio/shell"
-		cmd.Stdout = s.output
+		// theia watch barfs a lot of useless warnings with every change
+		//cmd.Stdout = s.output
 		cmd.Stderr = s.output
 		return nil
 	}
@@ -91,39 +84,46 @@ func (s *Service) InitializeDaemon() (err error) {
 }
 
 func (s *Service) TerminateDaemon() error {
-	return s.watcher.Close()
+	s.watcher.Close()
+	return nil
 }
 
 func (s *Service) Serve(ctx context.Context) {
-	debounce := Debounce(20 * time.Millisecond)
+	go s.handleLoop(ctx)
+	if err := s.watcher.Start(WatchInterval); err != nil {
+		s.Logger.Debug(err)
+	}
+}
+func (s *Service) handleLoop(ctx context.Context) {
+	// debounce := Debounce(20 * time.Millisecond)
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case event, ok := <-s.watcher.Events:
+		case event, ok := <-s.watcher.Event:
 			if !ok {
 				return
 			}
-			if event.Op&fsnotify.Chmod == fsnotify.Chmod {
+			if event.Op&watcher.Chmod == watcher.Chmod {
 				continue
 			}
 
-			if filepath.Ext(event.Name) == ".ts" || filepath.Ext(event.Name) == ".tsx" {
-				debounce(func() {
-					s.Logger.Debug("ts file changed, compiling...")
-					for _, plugin := range []string{"inspector", "moduleview", "tableview"} {
-						if strings.Contains(event.Name, "/studio/plugins/"+plugin) {
-							go func() {
-								// theia plugin
-								cmd := exec.Command("tsc", "-p", "./studio/plugins/"+plugin)
-								cmd.Stdout = s.output
-								cmd.Stderr = s.output
-								cmd.Run()
-								s.Logger.Debug("finished")
-							}()
-						}
+			if filepath.Ext(event.Path) == ".ts" || filepath.Ext(event.Path) == ".tsx" {
+				// debounce(func() {
+				s.Logger.Debug("ts file changed, compiling...")
+				for _, plugin := range []string{"inspector", "moduleview", "tableview"} {
+					if strings.Contains(event.Path, "/studio/plugins/"+plugin) {
+						go func() {
+							// theia plugin
+							cmd := exec.Command("tsc", "-p", "./studio/plugins/"+plugin)
+							cmd.Stdout = s.output
+							cmd.Stderr = s.output
+							cmd.Run()
+							s.Logger.Debug("finished")
+						}()
 					}
-					// if strings.Contains(event.Name, "/studio/extension/") {
+				}
+				if strings.Contains(event.Path, "/studio/extension/") {
 					go func() {
 						// theia extension
 						cmd := exec.Command("tsc", "-p", "./studio/extension")
@@ -132,12 +132,12 @@ func (s *Service) Serve(ctx context.Context) {
 						cmd.Run()
 						s.Logger.Debug("finished")
 					}()
-					// }
-				})
+				}
+				// })
 
 			}
 
-			if filepath.Ext(event.Name) == ".go" {
+			if filepath.Ext(event.Path) == ".go" {
 				s.Logger.Debug("go file changed, testing/compiling...")
 				errs := make(chan error)
 				go func() {
@@ -198,35 +198,15 @@ func (s *Service) Serve(ctx context.Context) {
 				}()
 			}
 
-		case err, ok := <-s.watcher.Errors:
+		case err, ok := <-s.watcher.Error:
 			if !ok {
 				return
 			}
 			s.Logger.Debug("error:", err)
+		case <-s.watcher.Closed:
+			return
 		}
 	}
-}
-
-func collectDirs(path string, ignoreNames []string) []string {
-	var dirs []string
-	err := filepath.Walk(path, func(p string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if info.IsDir() {
-			for _, name := range ignoreNames {
-				if info.Name() == name {
-					return filepath.SkipDir
-				}
-			}
-			dirs = append(dirs, p)
-		}
-		return nil
-	})
-	if err != nil {
-		return nil
-	}
-	return dirs
 }
 
 func exitStatus(err error) int {

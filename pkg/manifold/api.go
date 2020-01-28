@@ -118,9 +118,9 @@ type AttributeSet interface {
 }
 
 type ComponentGetter interface {
-	// GetField returns the field value found at the given
+	// GetField returns the field value and type found at the given
 	// path relative to the current context.
-	GetField(path string) (interface{}, error)
+	GetField(path string) (interface{}, reflect.Type, error)
 }
 
 type ComponentSetter interface {
@@ -205,20 +205,10 @@ type Component interface {
 	RelatedPrefabs()
 }
 
-type ObjectNotifier interface {
-	Notify(changed Object, path string, old, new interface{})
-}
-
-type ObjectObserver struct {
-	// Path is a prefix to the paths that change notifications
-	// are allowed to come from for this observer. If blank, it
-	// defaults to the path of the object.
-	Path string
-
-	// OnChange is a callback for change notifications. It gets the
-	// specific object that was changed, the path to the specific
-	// field that was changed, the old value, and the new value.
-	OnChange func(obj Object, path string, old, new interface{})
+type ObjectChange struct {
+	Object   Object
+	Path     string
+	Old, New interface{}
 }
 
 // Object is the main primitive of Tractor, which is made up of components
@@ -238,6 +228,7 @@ type Object interface {
 	Path() string
 
 	// Subpath returns a subpath of this object.
+	// TODO: combine with Path
 	Subpath(names ...string) string
 
 	// SetName sets the name of this object.
@@ -264,14 +255,6 @@ type Object interface {
 	FindID(id string) Object
 
 	RemoveID(id string) Object
-
-	// Observe registers an observer with the object that
-	// will be notified of changes to the object.
-	Observe(observer *ObjectObserver)
-
-	// Unobserve unregisters an observer with the object to
-	// no longer be notified of changes.
-	Unobserve(observer *ObjectObserver)
 
 	// Main returns the main component for this object
 	// or nil if there is none. The main component is not kept in
@@ -305,18 +288,11 @@ type ComponentSnapshot struct {
 	Enabled  bool
 	Attrs    map[string]interface{}
 	Value    interface{}
+	Refs     []SnapshotRef
 }
 
-// func (c *ComponentSnapshot) UnmarshalJSON(b []byte) (err error) {
-// 	type componentSnapshot ComponentSnapshot
-// 	err = json.Unmarshal(b, (*componentSnapshot)(c))
-// 	if err != nil {
-// 		return
-// 	}
-// 	c.refs = scanRefs(c.Value, c.Name, c.ObjectID)
-// 	return
-// }
-
-// func (c *ComponentSnapshot) SnapshotRefs() []SnapshotRef {
-// 	return c.refs
-// }
+type SnapshotRef struct {
+	ObjectID string
+	Path     string
+	TargetID string
+}

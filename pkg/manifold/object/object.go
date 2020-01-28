@@ -10,16 +10,26 @@ import (
 
 	"github.com/manifold/tractor/pkg/manifold"
 	"github.com/manifold/tractor/pkg/misc/debouncer"
+	"github.com/manifold/tractor/pkg/misc/notify"
 	"github.com/manifold/tractor/pkg/misc/registry"
 	"github.com/rs/xid"
 )
+
+var RegistryPreloader func(o manifold.Object) []interface{}
+
+func defaultPreloader(o manifold.Object) []interface{} {
+	return []interface{}{o}
+}
+
+func init() {
+	RegistryPreloader = defaultPreloader
+}
 
 func newObject(name string) *object {
 	obj := &object{
 		id:           xid.New().String(),
 		name:         name,
 		path:         "/",
-		observers:    make(map[*manifold.ObjectObserver]struct{}),
 		attributeset: attributeset(make(map[string]interface{})),
 		componentlist: componentlist{
 			components: make([]manifold.Component, 0),
@@ -51,23 +61,22 @@ type object struct {
 	parent   manifold.Object
 	children []manifold.Object
 
-	id        string
-	name      string
-	path      string
-	observers map[*manifold.ObjectObserver]struct{}
-	main      manifold.Component
-	registry  *registry.Registry
-	mu        sync.Mutex
+	id       string
+	name     string
+	path     string
+	main     manifold.Component
+	registry *registry.Registry
+	mu       sync.Mutex
 
 	notifyDebounce func(f func())
-	observerMu     sync.Mutex
+	t              notify.TopicImpl
 }
 
-func (o *object) GetField(path string) (interface{}, error) {
+func (o *object) GetField(path string) (interface{}, reflect.Type, error) {
 	parts := strings.SplitN(path, "/", 2)
 	com := o.Component(parts[0])
 	if com == nil {
-		return nil, errors.New("component not on node: " + parts[0])
+		return nil, nil, errors.New("component not on node: " + parts[0])
 	}
 	return com.GetField(parts[1])
 }
@@ -106,7 +115,13 @@ func (o *object) SetName(name string) {
 		o.mu.Lock()
 		o.name = name
 		o.mu.Unlock()
-		o.notify(o, "::Name", old, name)
+		// o.notify(o, "::Name", old, name)
+		notify.Send(o, manifold.ObjectChange{
+			Object: o,
+			Path:   "::Name",
+			Old:    old,
+			New:    name,
+		})
 	}
 }
 
@@ -180,16 +195,17 @@ func (o *object) FindPointer(ptr interface{}) manifold.Object {
 	return nil
 }
 
-func (o *object) Observe(obs *manifold.ObjectObserver) {
-	o.observerMu.Lock()
-	defer o.observerMu.Unlock()
-	o.observers[obs] = struct{}{}
+func (o *object) Observe(observer notify.Notifier) {
+	o.t.Observe(observer)
 }
 
-func (o *object) Unobserve(obs *manifold.ObjectObserver) {
-	o.observerMu.Lock()
-	defer o.observerMu.Unlock()
-	delete(o.observers, obs)
+func (o *object) Unobserve(observer notify.Notifier) {
+	o.t.Unobserve(observer)
+}
+
+func (o *object) Notify(event interface{}) {
+	o.t.Notify(event)
+	notify.Send(o.parent, event)
 }
 
 func (o *object) Main() manifold.Component {
@@ -203,7 +219,13 @@ func (o *object) SetMain(com manifold.Component) {
 	old := o.main
 	if old != com {
 		o.main = com
-		o.notify(o, "::Main", old, com)
+		// o.notify(o, "::Main", old, com)
+		notify.Send(o, manifold.ObjectChange{
+			Object: o,
+			Path:   "::Main",
+			Old:    old,
+			New:    com,
+		})
 	}
 }
 
@@ -241,13 +263,9 @@ type ComponentInitializer interface {
 }
 
 func (o *object) UpdateRegistry() (err error) {
-	entries := []interface{}{manifold.Object(o)}
+	entries := RegistryPreloader(o)
 	for _, com := range o.Components() {
 		entries = append(entries, com.Pointer())
-		initializer, ok := com.Pointer().(ComponentInitializer)
-		if ok {
-			initializer.InitializeComponent(o)
-		}
 	}
 	o.registry, err = registry.New(entries...)
 	return

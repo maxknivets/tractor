@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"sync"
 
 	"github.com/manifold/tractor/pkg/manifold"
 	"github.com/manifold/tractor/pkg/manifold/library"
@@ -58,6 +59,8 @@ type State struct {
 	Nodes          map[string]Node   `msgpack:"nodes"`
 	NodePaths      map[string]string `msgpack:"nodePaths"`
 	SelectedNode   string            `msgpack:"selectedNode"`
+
+	mu sync.Mutex
 }
 
 func exportElem(v reflected.Value, path string, idx int, n manifold.Object) (Field, bool) {
@@ -277,15 +280,24 @@ func (s *State) Update(root manifold.Object) {
 				}
 			}
 
+			var filepath string
+			if com.ID() != "" {
+				filepath = library.LookupID(com.ID()).Filepath
+			} else {
+				filepath = library.Lookup(com.Name()).Filepath
+			}
+
 			node.Components = append(node.Components, Component{
 				Name:     com.Name(),
-				Filepath: library.Lookup(com.Name()).Filepath,
+				Filepath: filepath,
 				Fields:   fields,
 				Buttons:  buttons,
 			})
 		}
+		s.mu.Lock()
 		s.Nodes[n.ID()] = node
 		s.NodePaths[n.Path()] = n.ID()
+		s.mu.Unlock()
 	})
 }
 

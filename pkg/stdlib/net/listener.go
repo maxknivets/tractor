@@ -11,7 +11,7 @@ type TCPListener struct {
 	l net.Listener
 }
 
-func (c *TCPListener) OnEnable() {
+func (c *TCPListener) ComponentEnable() {
 	log.Printf("tcp listener at %s\n", c.Address)
 	var err error
 	c.l, err = net.Listen("tcp", c.Address)
@@ -20,10 +20,10 @@ func (c *TCPListener) OnEnable() {
 	}
 }
 
-func (c *TCPListener) OnDisable() {
-    if c.l != nil {
-        c.l.Close()
-    }
+func (c *TCPListener) ComponentDisable() {
+	if c.l != nil {
+		c.l.Close()
+	}
 }
 
 func (c *TCPListener) Accept() (net.Conn, error) {
