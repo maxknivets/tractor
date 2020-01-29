@@ -54,6 +54,8 @@ export namespace TractorContextMenu {
 
     export const WORKSPACE = [...TRACTOR_CONTEXT_MENU, '2_workspace'];
 
+    export const COMPONENTS = [...WORKSPACE, 'related_com'];
+
     export const COMPARE = [...TRACTOR_CONTEXT_MENU, '3_compare'];
 
     export const SEARCH = [...TRACTOR_CONTEXT_MENU, '4_search'];

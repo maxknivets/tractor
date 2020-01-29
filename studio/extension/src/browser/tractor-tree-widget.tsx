@@ -35,12 +35,12 @@ import * as React from 'react';
  * Representation of an object node.
  */
 export interface ObjectNode extends CompositeTreeNode, SelectableTreeNode, ExpandableTreeNode {
-    /**
-     * The `iconClass` for the given tree node.
-     */
+    
     iconClass: string;
 
     absPath: string;
+
+    relatedComponents: string[];
 }
 
 /**
@@ -122,6 +122,12 @@ export class TractorTreeWidget extends TreeWidget {
             return {id: data.nodePaths[p], path: p};
         }).map((obj) => {
             let n = data.nodes[obj.id];
+            let related = []
+            n.components.forEach((com) => {
+                if (com.related) {
+                    related.push(...com.related);
+                }
+            });
             let objNode = {
                 id: obj.id,
                 name: n.name,
@@ -129,7 +135,8 @@ export class TractorTreeWidget extends TreeWidget {
                 visible: true,
                 expanded: true,
                 absPath: obj.path,
-                selected: false
+                selected: false,
+                relatedComponents: [...new Set(related)]
             } as ObjectNode;
             objNode.children = this.nodesFromData(data, objNode);
             let treeNode = this.model.getNode(obj.id);

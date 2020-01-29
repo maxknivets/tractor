@@ -215,9 +215,6 @@ func (c *component) Fields() {}
 func (c *component) Methods() {}
 
 // TODO
-func (c *component) RelatedComponents() {}
-
-// TODO
 func (c *component) RelatedPrefabs() {}
 
 func (c *component) Snapshot() manifold.ComponentSnapshot {

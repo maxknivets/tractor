@@ -34,6 +34,7 @@ type Component struct {
 	Filepath string   `msgpack:"filepath"`
 	Fields   []Field  `msgpack:"fields"`
 	Buttons  []Button `msgpack:"buttons"`
+	Related  []string `msgpack:"related"`
 }
 
 type Node struct {
@@ -287,11 +288,17 @@ func (s *State) Update(root manifold.Object) {
 				filepath = library.Lookup(com.Name()).Filepath
 			}
 
+			var related []string
+			for _, rc := range library.Related(library.Lookup(com.Name())) {
+				related = append(related, rc.Type.Name())
+			}
+
 			node.Components = append(node.Components, Component{
 				Name:     com.Name(),
 				Filepath: filepath,
 				Fields:   fields,
 				Buttons:  buttons,
+				Related:  related,
 			})
 		}
 		s.mu.Lock()

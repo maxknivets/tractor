@@ -80,6 +80,7 @@ class InspectorContainer extends React.Component {
         } else {
             node = this.state.remote.nodes[this.state.lastSelected];
         }
+        console.log(node);
         return <Inspector node={node} components={this.state.remote.components} />;
     }
   }

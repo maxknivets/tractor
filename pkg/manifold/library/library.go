@@ -1,7 +1,9 @@
 package library
 
 import (
+	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/manifold/tractor/pkg/manifold"
 	"github.com/progrium/prototypes/go-reflected"
@@ -70,4 +72,19 @@ func LookupID(id string) *RegisteredComponent {
 		}
 	}
 	return nil
+}
+
+func Related(c *RegisteredComponent) (related []*RegisteredComponent) {
+	if c == nil {
+		return
+	}
+	for _, rc := range registered {
+		if rc.Type == c.Type {
+			continue
+		}
+		if strings.HasPrefix(rc.Filepath, filepath.Dir(c.Filepath)) {
+			related = append(related, rc)
+		}
+	}
+	return
 }

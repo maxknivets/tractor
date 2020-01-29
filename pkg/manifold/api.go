@@ -201,9 +201,6 @@ type Component interface {
 	Methods()
 
 	// TODO
-	RelatedComponents()
-
-	// TODO
 	RelatedPrefabs()
 }
 

@@ -16,12 +16,15 @@
 
 import { injectable, inject } from 'inversify';
 import URI from '@theia/core/lib/common/uri';
-import { Event, Emitter, DisposableCollection } from '@theia/core';
-import { WidgetFactory } from '@theia/core/lib/browser';
-import { TractorTreeWidget, ObjectNode, TractorTreeWidgetFactory } from './tractor-tree-widget';
+import { Event, Emitter, DisposableCollection, MenuModelRegistry } from '@theia/core';
+import { WidgetFactory, TreeSelectionService } from '@theia/core/lib/browser';
+import { Command, CommandRegistry } from '@theia/core/lib/common/command';
 import { Widget } from '@phosphor/widgets';
 import { WorkspaceService } from '@theia/workspace/lib/browser';
 import { ILogger, MessageService } from '@theia/core';
+
+import { TractorTreeWidget, ObjectNode, TractorTreeWidgetFactory } from './tractor-tree-widget';
+import { TractorContextMenu, TRACTOR_CONTEXT_MENU } from './tractor-contribution';
 
 import * as qmux from 'qmux/dist/browser/qmux.min.js';
 import * as qrpc from 'qrpc';
@@ -43,6 +46,15 @@ export class TractorService implements WidgetFactory {
 
     @inject(MessageService)
     protected readonly messages: MessageService;
+
+    @inject(CommandRegistry)
+    protected readonly commands: CommandRegistry;
+
+    @inject(MenuModelRegistry)
+    protected readonly menus: MenuModelRegistry;
+
+    // @inject(TreeSelectionService) 
+    // protected readonly selection: TreeSelectionService;
 
     @inject(ILogger)
     protected readonly logger: ILogger;
@@ -118,6 +130,7 @@ export class TractorService implements WidgetFactory {
                 var data = await c.decode();
                 //this.logger.warn(data);
                 this.components = data.components;
+                this.refreshRegistries();
                 if (this.widget) {
                     this.widget.setData(data);
                     this.onDidChangeEmitter.fire(this.widget.rootObjects());
@@ -129,12 +142,52 @@ export class TractorService implements WidgetFactory {
         if (this.widget) {
             this.widget.model.onSelectionChanged(event => {
                 const node = this.widget.model.selectedNodes[0];
+                this.buildContextMenus(node as ObjectNode);
                 this.client.call("selectNode", node.id);
             });
         }
 		await this.client.call("subscribe");
     }
+
+    buildContextMenus(node: ObjectNode) {
+        const index = TractorContextMenu.COMPONENTS.length - 1;
+        const menuId = TractorContextMenu.COMPONENTS[index];
+        this.components.forEach((c) => {
+            let id = `tractor:component-add:${c.name}`
+            this.menus.unregisterMenuAction(id, TractorContextMenu.COMPONENTS);
+        });
+        this.menus.unregisterMenuAction('related_com', TractorContextMenu.WORKSPACE);
+        this.menus.registerSubmenu(TractorContextMenu.COMPONENTS, 'Add Related');
+
+        if (node.relatedComponents) {
+            node.relatedComponents.forEach((name) => {
+                let cmdId = `tractor:component-add:${name}`
+                this.menus.registerMenuAction(TractorContextMenu.COMPONENTS, {
+                    commandId: cmdId,
+                    label: name
+                });
+            });
+        }
+    }
     
+    refreshRegistries() {
+        this.components.forEach((c) => {
+            let id = `tractor:component-add:${c.name}`
+            let label = `Add Component: ${c.name}`
+
+            this.commands.unregisterCommand(id);
+            this.commands.registerCommand({id:id, label:label}, {
+                execute: () =>  {
+                    let node = this.widget.model.selectedNodes[0];
+                    if (node) {
+                        this.addComponent(c.name, node.id);
+                    }
+                }
+            });
+            
+        });
+    }
+
     renameNode(id: string, name: string) {
 		this.client.call("updateNode", {
 			"ID": id,
